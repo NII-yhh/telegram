@@ -1,15 +1,40 @@
 import telebot
 import requests
-
 import os
 from telebot import types
 
-API_URL = (
-    "https://www.binance.com/bapi/c2c/v1/public/c2c/agent/ad-lis")
-
+API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("Не задан BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
+payload = {
+    "asset": "USDT",
+    "fiat": "CNY",
+    "tradeType": "BUY",
+    "page": 1,
+    "rows": 10,
+    "payTypes": [],
+    "publisherType": None,
+    "transAmount": ""
+}
+try:
+    response = requests.post(
+        API_URL,
+        json=payload,
+        timeout=15
+    )
 
+    response.raise_for_status()
+    data = response.json()
+    if data["data"]:
+        print("Объявления найдены!")
+    else:
+        print("Объявлений нет")
+
+
+except requests.exceptions.RequestException as error:
+    print("Ошибка запроса:", error)
 
 amount = 0
 @bot.message_handler(commands=['start'])
@@ -35,7 +60,7 @@ def start(message):
             photo,
             caption="""💱 P2P Tracker — мониторинг P2P-ордеров
 
-    Бот для быстрого поиска выгодных P2P-предложений по криптовалютам за российские рубли (RUB).
+    Бот для быстрого поиска выгодных P2P-предложений по криптовалютам за китайские юани(CNY).
 
     🔎 Что умеет бот?
 

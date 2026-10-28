@@ -22,7 +22,7 @@ try:
     response = requests.post(
         API_URL,
         json=payload,
-        timeout=20
+        timeout=15
     )
 
     response.raise_for_status()

@@ -8,49 +8,25 @@ TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("Не задан BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
-payload = {
-    "asset": "USDT",
-    "fiat": "CNY",
-    "tradeType": "BUY",
-    "page": 1,
-    "rows": 10,
-    "payTypes": [],
-    "publisherType": None,
-    "transAmount": ""
-}
-try:
-    response = requests.post(
-        API_URL,
-        json=payload,
-        timeout=20
-    )
-
-    response.raise_for_status()
-    data = response.json()
-    if data["data"]:
-        print("Объявления найдены!")
-    else:
-        print("Объявлений нет")
 
 
-except requests.exceptions.RequestException as error:
-    print("Ошибка запроса:", error)
 
 amount = 0
 @bot.message_handler(commands=['start'])
 def start(message):
 
     marcup = types.InlineKeyboardMarkup(row_width=2)
-    btn1 = types.InlineKeyboardButton("BTC", callback_data="BTC")
-    btn2 = types.InlineKeyboardButton("ETH", callback_data="ETH")
-    btn3 = types.InlineKeyboardButton("USDT",callback_data="USDT")
-    btn4 = types.InlineKeyboardButton("BNB", callback_data="BNB")
-    btn5 = types.InlineKeyboardButton("USDC", callback_data="USDC")
-    btn6 = types.InlineKeyboardButton("Ripple", callback_data="Ripple")
-    btn7 = types.InlineKeyboardButton("SOL", callback_data="SOL")
-    btn8 = types.InlineKeyboardButton("DOGE", callback_data="DOGE")
-    btn9 = types.InlineKeyboardButton("TRX", callback_data="TRX")
-    btn10 = types.InlineKeyboardButton("ADA", callback_data="ADA")
+    btn1 = types.InlineKeyboardButton("BTC", callback_data="coin:BTC")
+    btn2 = types.InlineKeyboardButton("ETH", callback_data="coin:ETH")
+    btn3 = types.InlineKeyboardButton("USDT",callback_data="coin:USDT")
+
+    btn4 = types.InlineKeyboardButton("BNB", callback_data="coin:BNB")
+    btn5 = types.InlineKeyboardButton("USDC", callback_data="coin:USDC")
+    btn6 = types.InlineKeyboardButton("Ripple", callback_data="coin:Ripple")
+    btn7 = types.InlineKeyboardButton("SOL", callback_data="coin:SOL")
+    btn8 = types.InlineKeyboardButton("DOGE", callback_data="coin:DOGE")
+    btn9 = types.InlineKeyboardButton("TRX", callback_data="coin:TRX")
+    btn10 = types.InlineKeyboardButton("ADA", callback_data="coin:ADA")
 
     marcup.add(btn1,btn2,btn3,btn4,btn5,btn6,btn7,btn8,btn9,btn10)
 
@@ -80,11 +56,44 @@ def start(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
-    coin = call.data
-    bot.answer_callback_query(call.id)
 
-def btc(message):
-    global amount
+    bot.answer_callback_query(call.id)
+    coin = call.data.split(":", 1)[1]
+
+    payload = {
+        "asset": coin,
+        "fiat": "CNY",
+        "tradeType": "BUY",
+        "page": 1,
+        "rows": 10,
+        "payTypes": [],
+        "publisherType": None,
+        "transAmount": ""
+    }
+
+    try:
+        response = requests.post(
+            API_URL,
+            json=payload,
+            timeout=20
+        )
+
+        response.raise_for_status()
+        data = response.json()
+        if data.get("data"):
+            bot.send_message(call.message.chat.id,f"Обьявления для {coin} найдены.")
+        else:
+            bot.send_message(call.message.chat.id, f"Обьявления для {coin} не найдены.")
+
+
+    except requests.exceptions.RequestException as error:
+        print("Ошибка запроса:", error)
+
+
+    bot.send_message(call.message.chat.id,"Не удалось получить объявления. Попробуй позже."
+
+
+        )
 
 
 

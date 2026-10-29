@@ -143,10 +143,14 @@ def trade_callback(call):
                     continue
 
                 nickname = advertiser.get("nickName", "Не указан")
-
+                min_amount = ad.get("minSingleTransAmount", "?")
+                max_amount = ad.get("maxSingleTransAmount", "?")
+                available = ad.get("surplusAmount", "?")
                 text += (
                     f"{index}. Цена: {price} CNY\n"
                     f"   Контрагент: {nickname}\n\n"
+                    f"   Лимиты: {min_amount}–{max_amount} CNY\n"
+                    f"   Доступно: {available} {coin}\n\n"
                 )
 
             bot.send_message(

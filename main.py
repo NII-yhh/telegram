@@ -10,15 +10,16 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN)
 
 
-
 amount = 0
+
+
 @bot.message_handler(commands=['start'])
 def start(message):
 
     marcup = types.InlineKeyboardMarkup(row_width=2)
     btn1 = types.InlineKeyboardButton("BTC", callback_data="coin:BTC")
     btn2 = types.InlineKeyboardButton("ETH", callback_data="coin:ETH")
-    btn3 = types.InlineKeyboardButton("USDT",callback_data="coin:USDT")
+    btn3 = types.InlineKeyboardButton("USDT", callback_data="coin:USDT")
 
     btn4 = types.InlineKeyboardButton("BNB", callback_data="coin:BNB")
     btn5 = types.InlineKeyboardButton("USDC", callback_data="coin:USDC")
@@ -28,7 +29,7 @@ def start(message):
     btn9 = types.InlineKeyboardButton("TRX", callback_data="coin:TRX")
     btn10 = types.InlineKeyboardButton("ADA", callback_data="coin:ADA")
 
-    marcup.add(btn1,btn2,btn3,btn4,btn5,btn6,btn7,btn8,btn9,btn10)
+    marcup.add(btn1, btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10)
 
     with open("images/dddd.png", "rb") as photo:
         bot.send_photo(
@@ -57,16 +58,50 @@ def start(message):
         )
 
 
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-
-    bot.answer_callback_query(call.id)
+def button(call):
     coin = call.data.split(":", 1)[1]
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
+
+    btn0 = types.InlineKeyboardButton(
+        "🟢 Купить",
+        callback_data=f"trade:BUY:{coin}"
+    )
+
+    btn14 = types.InlineKeyboardButton(
+        "🔴 Продать",
+        callback_data=f"trade:SELL:{coin}"
+    )
+
+    markup.add(btn0, btn14)
+
+    bot.send_message(
+        call.message.chat.id,
+        f"Выбрана валюта: {coin}\nВыбери направление сделки:",
+        reply_markup=markup
+    )
+
+
+@bot.callback_query_handler(
+    func=lambda call: call.data.startswith("coin:")
+)
+def coin_callback(call):
+    bot.answer_callback_query(call.id)
+    button(call)
+
+
+@bot.callback_query_handler(
+    func=lambda call: call.data.startswith("trade:")
+)
+def trade_callback(call):
+    bot.answer_callback_query(call.id)
+
+    _, trade_type, coin = call.data.split(":")
 
     payload = {
         "asset": coin,
         "fiat": "CNY",
-        "tradeType": "BUY",
+        "tradeType": trade_type,
         "page": 1,
         "rows": 10,
         "payTypes": [],
@@ -82,22 +117,63 @@ def callback_query(call):
         )
 
         response.raise_for_status()
-        data = response.json()
-        if data.get("data"):
-            bot.send_message(call.message.chat.id,f"Обьявления для {coin} найдены.")
-        else:
-            bot.send_message(call.message.chat.id, f"Обьявления для {coin} не найдены.")
 
+        data = response.json()
+        ads = data.get("data", [])
+
+        if ads:
+            ads.sort(
+                key=lambda item: float(item.get("adv", {}).get("price", 0)),
+                reverse=(trade_type == "SELL")
+            )
+
+
+            first_ad = ads[0]
+            action = "покупку" if trade_type == "BUY" else "продажу"
+            text =f"Объявления на {action} {coin} найдены!\n\n"
+
+            for index, item in enumerate(ads, start=1):
+                ad = item.get("adv", {})
+                advertiser = item.get("advertiser", {})
+                price = float(ad.get("price"))
+                nickname = advertiser.get("nickName")
+
+                text += (
+                    f"{index}. Цена: {price} CNY\n"
+                    f"   Контрагент: {nickname}\n\n"
+                )
+
+
+            bot.send_message(
+                call.message.chat.id,
+
+            )
+
+            bot.send_message(
+                call.message.chat.id,
+                f"Объявления на {action} {coin} найдены!"
+            )
+        else:
+            bot.send_message(
+                call.message.chat.id,
+                f"Объявления для {coin}/CNY не найдены."
+            )
 
     except requests.exceptions.RequestException as error:
         print("Ошибка запроса:", error)
 
-
-    bot.send_message(call.message.chat.id,"Не удалось получить объявления. Попробуй позже."
-
-
+        bot.send_message(
+            call.message.chat.id,
+            "Не удалось получить объявления. Попробуй позже."
         )
 
+    except (ValueError, TypeError) as error:
+        print("Ошибка обработки ответа Binance:", error)
+
+        bot.send_message(
+            call.message.chat.id,
+            "Не удалось обработать ответ Binance."
+        )
 
 
 bot.infinity_polling()

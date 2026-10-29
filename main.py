@@ -143,6 +143,15 @@ def trade_callback(call):
                     continue
 
                 nickname = advertiser.get("nickName", "Не указан")
+                finish_rate = advertiser.get("monthFinishRate")
+                try:
+                    if 0 <= finish_rate <=1:
+                     finish_rate = finish_rate * 100
+                     finish_rate = (f"{finish_rate:.1f}%")
+
+                except (ValueError, TypeError):
+                    finish_rate = "Нет данных"
+
                 min_amount = ad.get("minSingleTransAmount", "?")
                 max_amount = ad.get("maxSingleTransAmount", "?")
                 available = ad.get("surplusAmount", "?")
@@ -151,6 +160,7 @@ def trade_callback(call):
                     f"   Контрагент: {nickname}\n\n"
                     f"   Лимиты: {min_amount}–{max_amount} CNY\n"
                     f"   Доступно: {available} {coin}\n\n"
+                    f"   Завершение сделок: {finish_rate}\n"
                 )
 
             bot.send_message(

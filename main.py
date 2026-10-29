@@ -8,7 +8,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("Не задан BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
-
+MIN_FINISH_RATE = 92
 
 amount = 0
 
@@ -117,8 +117,12 @@ def trade_callback(call):
         )
 
         response.raise_for_status()
+        try:
+         data = response.json()
+        except requests.exceptions.JSONDecodeError:
+            print("Binance вернула некорректный JSON")
+            return []
 
-        data = response.json()
         ads = data.get("data", [])
 
         if ads:
@@ -151,7 +155,7 @@ def trade_callback(call):
 
                 except (ValueError, TypeError):
                     finish_rate = "Нет данных"
-                if finish_rate < 95:
+                if finish_rate < MIN_FINISH_RATE:
                     continue
 
                 min_amount = ad.get("minSingleTransAmount", "?")

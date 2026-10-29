@@ -157,6 +157,14 @@ def trade_callback(call):
                 min_amount = ad.get("minSingleTransAmount", "?")
                 max_amount = ad.get("maxSingleTransAmount", "?")
                 available = ad.get("surplusAmount", "?")
+
+                try:
+                    available = float(ad.get("surplusAmount", 0))
+                except (ValueError, TypeError):
+                    continue
+
+                if available < 100:
+                    continue
                 text += (
                     f"{index}. Цена: {price} CNY\n"
                     f"   Контрагент: {nickname}\n\n"

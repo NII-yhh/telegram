@@ -11,39 +11,35 @@ if not TOKEN:
 
 bot = telebot.TeleBot(TOKEN)
 
-conn = sqlite3.connect("p2p_tracker.db") #sqlite3.connect(...) — открывает базу данных или создаёт файл, если его ещё нет.
-cursor = conn.cursor() #cursor = conn.cursor() — создаёт объект для выполнения SQL-запросов.
+DB_PATH = "/data/p2p_tracker.db"
+
+conn = sqlite3.connect(DB_PATH)
+cursor = conn.cursor()
 
 cursor.execute("""
-    CREATE TABLE IF NOT EXISTS user_settings (     
+    CREATE TABLE IF NOT EXISTS user_settings (
         user_id INTEGER PRIMARY KEY,
         min_finish_rate REAL DEFAULT 95
     )
-""")# CREATE TABLE IF NOT EXISTS — создаёт таблицу, если она ещё не существует.
-#user_id INTEGER PRIMARY KEY — ID пользователя, который не должен повторяться.
-#min_finish_rate REAL DEFAULT 95 — число с плавающей точкой, по умолчанию 95.
+""")
 
-conn.commit() #conn.commit() — сохраняет изменения.
-conn.close() #conn.close() — закрывает соединение.
+conn.commit()
+conn.close()
 
-def tabl(user_id, min_finish_rate):
-    def save_user_settings(user_id, min_finish_rate):
-        conn = sqlite3.connect("p2p_tracker.db")
-        cursor = conn.cursor()
 
-        cursor.execute("""
-            INSERT OR REPLACE INTO user_settings
-            (user_id, min_finish_rate)
-            VALUES (?, ?)
-        """, (user_id, min_finish_rate))
+def save_user_settings(user_id, min_finish_rate):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-        conn.commit()
-        conn.close()
+    cursor.execute("""
+        INSERT OR REPLACE INTO user_settings
+        (user_id, min_finish_rate)
+        VALUES (?, ?)
+    """, (user_id, min_finish_rate))
 
-        #INSERT OR REPLACE — добавляет новую запись или заменяет существующую с таким же первичным ключом.
-#VALUES (?, ?) — два места для значений, которые передадим отдельно.
-#(user_id, min_finish_rate) — реальные значения для этих мест.
-#commit() — сохраняет изменения в базе данных.
+    conn.commit()
+    conn.close()
+
 
 MIN_FINISH_RATE = 92
 

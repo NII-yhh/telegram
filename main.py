@@ -151,6 +151,8 @@ def trade_callback(call):
 
                 except (ValueError, TypeError):
                     finish_rate = "Нет данных"
+                if finish_rate < 95:
+                    continue
 
                 min_amount = ad.get("minSingleTransAmount", "?")
                 max_amount = ad.get("maxSingleTransAmount", "?")

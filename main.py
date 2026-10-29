@@ -2,6 +2,7 @@ import telebot
 import requests
 import os
 from telebot import types
+import sqlite3
 
 API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
@@ -9,6 +10,41 @@ if not TOKEN:
     raise ValueError("Не задан BOT_TOKEN")
 
 bot = telebot.TeleBot(TOKEN)
+
+conn = sqlite3.connect("p2p_tracker.db") #sqlite3.connect(...) — открывает базу данных или создаёт файл, если его ещё нет.
+cursor = conn.cursor() #cursor = conn.cursor() — создаёт объект для выполнения SQL-запросов.
+
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_settings (     
+        user_id INTEGER PRIMARY KEY,
+        min_finish_rate REAL DEFAULT 95
+    )
+""")# CREATE TABLE IF NOT EXISTS — создаёт таблицу, если она ещё не существует.
+#user_id INTEGER PRIMARY KEY — ID пользователя, который не должен повторяться.
+#min_finish_rate REAL DEFAULT 95 — число с плавающей точкой, по умолчанию 95.
+
+conn.commit() #conn.commit() — сохраняет изменения.
+conn.close() #conn.close() — закрывает соединение.
+
+def tabl(user_id, min_finish_rate):
+    def save_user_settings(user_id, min_finish_rate):
+        conn = sqlite3.connect("p2p_tracker.db")
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT OR REPLACE INTO user_settings
+            (user_id, min_finish_rate)
+            VALUES (?, ?)
+        """, (user_id, min_finish_rate))
+
+        conn.commit()
+        conn.close()
+
+        #INSERT OR REPLACE — добавляет новую запись или заменяет существующую с таким же первичным ключом.
+#VALUES (?, ?) — два места для значений, которые передадим отдельно.
+#(user_id, min_finish_rate) — реальные значения для этих мест.
+#commit() — сохраняет изменения в базе данных.
+
 MIN_FINISH_RATE = 92
 
 amount = 0

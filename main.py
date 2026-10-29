@@ -23,7 +23,7 @@ def start(message):
 
     btn4 = types.InlineKeyboardButton("BNB", callback_data="coin:BNB")
     btn5 = types.InlineKeyboardButton("USDC", callback_data="coin:USDC")
-    btn6 = types.InlineKeyboardButton("Ripple", callback_data="coin:Ripple")
+    btn6 = types.InlineKeyboardButton("Ripple", callback_data="coin:XRP")
     btn7 = types.InlineKeyboardButton("SOL", callback_data="coin:SOL")
     btn8 = types.InlineKeyboardButton("DOGE", callback_data="coin:DOGE")
     btn9 = types.InlineKeyboardButton("TRX", callback_data="coin:TRX")
@@ -127,32 +127,33 @@ def trade_callback(call):
                 reverse=(trade_type == "SELL")
             )
 
-
-            first_ad = ads[0]
             action = "покупку" if trade_type == "BUY" else "продажу"
-            text =f"Объявления на {action} {coin} найдены!\n\n"
+            text = f"Объявления на {action} {coin} найдены!\n\n"
 
             for index, item in enumerate(ads, start=1):
                 ad = item.get("adv", {})
                 advertiser = item.get("advertiser", {})
-                price = float(ad.get("price"))
-                nickname = advertiser.get("nickName")
+
+                try:
+                    price = float(ad.get("price"))
+                except (ValueError, TypeError):
+                    continue
+
+                if price <= 0:
+                    continue
+
+                nickname = advertiser.get("nickName", "Не указан")
 
                 text += (
                     f"{index}. Цена: {price} CNY\n"
                     f"   Контрагент: {nickname}\n\n"
                 )
 
-
             bot.send_message(
                 call.message.chat.id,
-
+                text
             )
 
-            bot.send_message(
-                call.message.chat.id,
-                f"Объявления на {action} {coin} найдены!"
-            )
         else:
             bot.send_message(
                 call.message.chat.id,

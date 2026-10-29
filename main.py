@@ -7,6 +7,7 @@ API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("Не задан BOT_TOKEN")
+
 bot = telebot.TeleBot(TOKEN)
 MIN_FINISH_RATE = 92
 
@@ -15,12 +16,11 @@ amount = 0
 
 @bot.message_handler(commands=['start'])
 def start(message):
-
     marcup = types.InlineKeyboardMarkup(row_width=2)
+
     btn1 = types.InlineKeyboardButton("BTC", callback_data="coin:BTC")
     btn2 = types.InlineKeyboardButton("ETH", callback_data="coin:ETH")
     btn3 = types.InlineKeyboardButton("USDT", callback_data="coin:USDT")
-
     btn4 = types.InlineKeyboardButton("BNB", callback_data="coin:BNB")
     btn5 = types.InlineKeyboardButton("USDC", callback_data="coin:USDC")
     btn6 = types.InlineKeyboardButton("Ripple", callback_data="coin:XRP")
@@ -117,26 +117,61 @@ def trade_callback(call):
         )
 
         response.raise_for_status()
+
         try:
-         data = response.json()
+            data = response.json()
         except requests.exceptions.JSONDecodeError:
             print("Binance вернула некорректный JSON")
-            return []
+            bot.send_message(
+                call.message.chat.id,
+                "Binance вернула некорректный ответ. Попробуй позже."
+            )
+            return
+
+        if not isinstance(data, dict):
+            raise ValueError("Неожиданный формат ответа Binance")
 
         ads = data.get("data", [])
 
+        if not isinstance(ads, list):
+            raise ValueError("Не удалось прочитать список объявлений")
+
         if ads:
-            ads.sort(
-                key=lambda item: float(item.get("adv", {}).get("price", 0)),
+            valid_ads = []
+
+            for item in ads:
+                if not isinstance(item, dict):
+                    continue
+
+                ad = item.get("adv", {})
+
+                if not isinstance(ad, dict):
+                    continue
+
+                try:
+                    price = float(ad.get("price", 0))
+                except (ValueError, TypeError):
+                    continue
+
+                if price <= 0:
+                    continue
+
+                valid_ads.append(item)
+
+            valid_ads.sort(
+                key=lambda item: float(item["adv"]["price"]),
                 reverse=(trade_type == "SELL")
             )
 
             action = "покупку" if trade_type == "BUY" else "продажу"
             text = f"Объявления на {action} {coin} найдены!\n\n"
 
-            for index, item in enumerate(ads, start=1):
+            for index, item in enumerate(valid_ads, start=1):
                 ad = item.get("adv", {})
                 advertiser = item.get("advertiser", {})
+
+                if not isinstance(advertiser, dict):
+                    advertiser = {}
 
                 try:
                     price = float(ad.get("price"))
@@ -147,20 +182,25 @@ def trade_callback(call):
                     continue
 
                 nickname = advertiser.get("nickName", "Не указан")
+
                 finish_rate = advertiser.get("monthFinishRate")
+
                 try:
-                    if 0 <= finish_rate <=1:
-                     finish_rate = finish_rate * 100
-                     finish_rate = (f"{finish_rate:.1f}%")
+                    finish_rate = float(finish_rate)
+
+                    if 0 <= finish_rate <= 1:
+                        finish_rate *= 100
 
                 except (ValueError, TypeError):
-                    finish_rate = "Нет данных"
+                    continue
+
                 if finish_rate < MIN_FINISH_RATE:
                     continue
 
+                finish_rate_text = f"{finish_rate:.1f}%"
+
                 min_amount = ad.get("minSingleTransAmount", "?")
                 max_amount = ad.get("maxSingleTransAmount", "?")
-                available = ad.get("surplusAmount", "?")
 
                 try:
                     available = float(ad.get("surplusAmount", 0))
@@ -169,18 +209,26 @@ def trade_callback(call):
 
                 if available < 100:
                     continue
+
                 text += (
                     f"{index}. Цена: {price} CNY\n"
                     f"   Контрагент: {nickname}\n\n"
                     f"   Лимиты: {min_amount}–{max_amount} CNY\n"
                     f"   Доступно: {available} {coin}\n\n"
-                    f"   Завершение сделок: {finish_rate}\n"
+                    f"   Завершение сделок: {finish_rate_text}\n"
                 )
 
-            bot.send_message(
-                call.message.chat.id,
-                text
-            )
+            if len(text) > len(f"Объявления на {action} {coin} найдены!\n\n"):
+                bot.send_message(
+                    call.message.chat.id,
+                    text
+                )
+            else:
+                bot.send_message(
+                    call.message.chat.id,
+                    f"Для {coin}/CNY не найдено объявлений, "
+                    "подходящих под заданные фильтры."
+                )
 
         else:
             bot.send_message(
@@ -196,8 +244,8 @@ def trade_callback(call):
             "Не удалось получить объявления. Попробуй позже."
         )
 
-    except (ValueError, TypeError) as error:
-        print("Ошибка обработки ответа Binance:", error)
+    except (ValueError, TypeError, KeyError) as error:
+        print("Ошибка обработки ответа Binance:", repr(error))
 
         bot.send_message(
             call.message.chat.id,

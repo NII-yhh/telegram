@@ -259,6 +259,7 @@ def trade_callback(call):
     try:
         # Загружаем страницы, пока не найдём 10 подходящих объявлений
         all_ads = []
+        seen_ids = set()
         page = 1
         # или пока Binance не перестанет возвращать объявления.
         while len(all_ads) < 10:
@@ -330,20 +331,31 @@ def trade_callback(call):
                 if 0 <= finish_rate <= 1:
                     finish_rate *= 100
 
-                if price <= 0:
-                    continue
+            if price <= 0:
+                continue
 
-                if finish_rate >= min_finish_rate and min_amount >= min_amount_cny:
-                    all_ads.append(item)
+            if finish_rate < min_finish_rate:
+                continue
 
-                if available < 100:
-                    continue
+            if min_single_amount < min_amount_cny:
+                continue
 
-                # Добавляем только объявления, прошедшие все фильтры.
-                all_ads.append(item)
+            if available < 100:
+                continue
 
-                if len(all_ads) >= 10:
-                    break
+                # Получаем уникальный ID объявления
+            ad_id = ad.get("advNo")
+
+            # Если ID отсутствует или объявление уже встречалось — пропускаем
+            if not ad_id or ad_id in seen_ids:
+                continue
+
+            # Запоминаем ID и добавляем объявление
+            seen_ids.add(ad_id)
+            all_ads.append(item)
+
+            if len(all_ads) >= 10:
+                break
 
             page += 1
 

@@ -11,7 +11,7 @@ if not TOKEN:
 
 bot = telebot.TeleBot(TOKEN)
 
-DB_PATH = "/data/p2p_tracker.db"
+DB_PATH = "p2p_tracker.db"
 
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
@@ -39,11 +39,34 @@ def save_user_settings(user_id, min_finish_rate):
 
     conn.commit()
     conn.close()
+def get_min_finish_rate(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT min_finish_rate FROM user_settings WHERE user_id = ?",(user_id,))
 
+    result = cursor.fetchone()
 
-MIN_FINISH_RATE = 92
+    conn.close()
 
-amount = 0
+    if result is None:
+        return 95
+
+    return result[0]
+@bot.message_handler(commands=['settings'])
+def settings(message):
+    marcup = types.InlineKeyboardMarkup(row_width=2)
+
+    btn12 = types.InlineKeyboardButton("92%", callback_data="rate:92")
+    btn13 = types.InlineKeyboardButton("94%", callback_data="rate:94")
+    btn14 = types.InlineKeyboardButton("96%", callback_data="rate:96")
+    btn15 = types.InlineKeyboardButton("98%", callback_data="rate:98")
+
+    marcup.add(btn12, btn13, btn14, btn15)
+    current_rate = get_min_finish_rate(message.from_user.id)
+    bot.send_message(
+        message.chat.id,
+        f"Текущий минимальный процент завершения сделок: {current_rate}%\n\n" "Выбери новое значение:",
+        reply_markup=marcup)
 
 
 @bot.message_handler(commands=['start'])
@@ -112,7 +135,21 @@ def button(call):
         f"Выбрана валюта: {coin}\nВыбери направление сделки:",
         reply_markup=markup
     )
+@bot.callback_query_handler(func=lambda call: call.data.startswith("rate:"))
+def rate_callback(call):
+    bot.answer_callback_query(call.id)
 
+    min_finish_rate = float(call.data.split(":")[1])
+
+    user_id = call.from_user.id
+
+    save_user_settings(user_id, min_finish_rate)
+
+    bot.send_message(
+        call.message.chat.id,
+        f"✅ Минимальный процент завершения сделок установлен: "
+        f"{min_finish_rate}%"
+    )
 
 @bot.callback_query_handler(
     func=lambda call: call.data.startswith("coin:")
@@ -129,6 +166,10 @@ def trade_callback(call):
     bot.answer_callback_query(call.id)
 
     _, trade_type, coin = call.data.split(":")
+
+    user_id = call.from_user.id
+
+    min_finish_rate = get_min_finish_rate(user_id)
 
     payload = {
         "asset": coin,
@@ -226,7 +267,7 @@ def trade_callback(call):
                 except (ValueError, TypeError):
                     continue
 
-                if finish_rate < MIN_FINISH_RATE:
+                if finish_rate < min_finish_rate:
                     continue
 
                 finish_rate_text = f"{finish_rate:.1f}%"

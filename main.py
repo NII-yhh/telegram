@@ -91,44 +91,51 @@ def get_min_finish_rate(user_id):
         return 95
 
     return result[0]
-@bot.message_handler(commands=['settings'])
+@bot.message_handler(commands=["settings"])
 def settings(message):
-    def settings(message):
-        markup = types.InlineKeyboardMarkup(row_width=2)
+    user_id = message.from_user.id
 
-        # Кнопки минимального процента завершения
-        btn12 = types.InlineKeyboardButton("92%", callback_data="rate:92")
-        btn13 = types.InlineKeyboardButton("94%", callback_data="rate:94")
-        btn14 = types.InlineKeyboardButton("96%", callback_data="rate:96")
-        btn15 = types.InlineKeyboardButton("98%", callback_data="rate:98")
-        markup.add(btn12, btn13, btn14, btn15)
-        current_rate = get_min_finish_rate(message.from_user.id)
-        bot.send_message(
-            message.chat.id,
-            f"Текущий минимальный процент завершения сделок: {current_rate}%\n""Выбери новые значения:")
+    current_rate = get_min_finish_rate(user_id)
+    current_amount = get_min_amount_cny(user_id)
 
-        markup.add(btn12, btn13, btn14, btn15)
-@bot.message_handler(commands=['settings'])
-def settings(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    # Настройка минимального процента завершения
+    rate_markup = types.InlineKeyboardMarkup(row_width=2)
 
-    # Кнопки минимальной суммы сделки
-    btn16 = types.InlineKeyboardButton("100 CNY", callback_data="amount:100")
-    btn17 = types.InlineKeyboardButton("500 CNY", callback_data="amount:500")
-    btn18 = types.InlineKeyboardButton("1000 CNY", callback_data="amount:1000")
-    btn19 = types.InlineKeyboardButton("5000 CNY", callback_data="amount:5000")
+    rate_buttons = [
+        types.InlineKeyboardButton("92%", callback_data="rate:92"),
+        types.InlineKeyboardButton("94%", callback_data="rate:94"),
+        types.InlineKeyboardButton("96%", callback_data="rate:96"),
+        types.InlineKeyboardButton("98%", callback_data="rate:98"),
+    ]
 
-    markup.add(btn16, btn17, btn18, btn19)
-
-
-    current_amount = get_min_amount_cny(message.from_user.id)
+    rate_markup.add(*rate_buttons)
 
     bot.send_message(
         message.chat.id,
+        "⚙️ Настройка процента завершения\n\n"
+        f"Текущее значение: {current_rate:.1f}%\n"
+        "Выбери минимальный процент:",
+        reply_markup=rate_markup
+    )
 
-        f"Текущая минимальная сумма сделки: {current_amount} CNY\n\n"
-        ,
-        reply_markup=markup
+    # Настройка минимальной суммы сделки
+    amount_markup = types.InlineKeyboardMarkup(row_width=2)
+
+    amount_buttons = [
+        types.InlineKeyboardButton("100 CNY", callback_data="amount:100"),
+        types.InlineKeyboardButton("500 CNY", callback_data="amount:500"),
+        types.InlineKeyboardButton("1000 CNY", callback_data="amount:1000"),
+        types.InlineKeyboardButton("5000 CNY", callback_data="amount:5000"),
+    ]
+
+    amount_markup.add(*amount_buttons)
+
+    bot.send_message(
+        message.chat.id,
+        "⚙️ Настройка минимальной суммы сделки\n\n"
+        f"Текущее значение: {current_amount:,.0f} CNY\n"
+        "Выбери минимальную сумму:",
+        reply_markup=amount_markup
     )
 
 

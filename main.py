@@ -19,12 +19,49 @@ cursor = conn.cursor()
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS user_settings (
         user_id INTEGER PRIMARY KEY,
-        min_finish_rate REAL DEFAULT 95
+        min_finish_rate REAL DEFAULT 95,
+        min_amount_cny REAL DEFAULT 100
     )
 """)
 
+try:
+    cursor.execute("""
+        ALTER TABLE user_settings
+        ADD COLUMN min_amount_cny REAL DEFAULT 100
+    """)
+except sqlite3.OperationalError as error:
+    if "duplicate column name" not in str(error):
+        raise
+
 conn.commit()
 conn.close()
+def save_min_amount_cny(user_id, min_amount_cny):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+           INSERT INTO user_settings (user_id, min_amount_cny)
+           VALUES (?, ?)
+           ON CONFLICT(user_id)
+           DO UPDATE SET min_amount_cny = excluded.min_amount_cny
+       """, (user_id, min_amount_cny))
+    conn.commit()
+    conn.close()
+def get_min_amount_cny(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT min_amount_cny FROM user_settings WHERE user_id = ?",
+        (user_id,)
+    )
+
+    result = cursor.fetchone()
+    conn.close()
+
+    if result is None or result[0] is None:
+        return 100
+
+    return result[0]
 
 
 def save_user_settings(user_id, min_finish_rate):
@@ -32,13 +69,15 @@ def save_user_settings(user_id, min_finish_rate):
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT OR REPLACE INTO user_settings
-        (user_id, min_finish_rate)
+        INSERT INTO user_settings (user_id, min_finish_rate)
         VALUES (?, ?)
+        ON CONFLICT(user_id)
+        DO UPDATE SET min_finish_rate = excluded.min_finish_rate
     """, (user_id, min_finish_rate))
 
     conn.commit()
     conn.close()
+
 def get_min_finish_rate(user_id):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -54,19 +93,34 @@ def get_min_finish_rate(user_id):
     return result[0]
 @bot.message_handler(commands=['settings'])
 def settings(message):
-    marcup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(row_width=2)
 
+    # Кнопки минимального процента завершения
     btn12 = types.InlineKeyboardButton("92%", callback_data="rate:92")
     btn13 = types.InlineKeyboardButton("94%", callback_data="rate:94")
     btn14 = types.InlineKeyboardButton("96%", callback_data="rate:96")
     btn15 = types.InlineKeyboardButton("98%", callback_data="rate:98")
 
-    marcup.add(btn12, btn13, btn14, btn15)
+    markup.add(btn12, btn13, btn14, btn15)
+
+    # Кнопки минимальной суммы сделки
+    btn16 = types.InlineKeyboardButton("100 CNY", callback_data="amount:100")
+    btn17 = types.InlineKeyboardButton("500 CNY", callback_data="amount:500")
+    btn18 = types.InlineKeyboardButton("1000 CNY", callback_data="amount:1000")
+    btn19 = types.InlineKeyboardButton("5000 CNY", callback_data="amount:5000")
+
+    markup.add(btn16, btn17, btn18, btn19)
+
     current_rate = get_min_finish_rate(message.from_user.id)
+    current_amount = get_min_amount_cny(message.from_user.id)
+
     bot.send_message(
         message.chat.id,
-        f"Текущий минимальный процент завершения сделок: {current_rate}%\n\n" "Выбери новое значение:",
-        reply_markup=marcup)
+        f"Текущий минимальный процент завершения сделок: {current_rate}%\n"
+        f"Текущая минимальная сумма сделки: {current_amount} CNY\n\n"
+        "Выбери новые значения:",
+        reply_markup=markup
+    )
 
 
 @bot.message_handler(commands=['start'])
@@ -135,21 +189,33 @@ def button(call):
         f"Выбрана валюта: {coin}\nВыбери направление сделки:",
         reply_markup=markup
     )
-@bot.callback_query_handler(func=lambda call: call.data.startswith("rate:"))
-def rate_callback(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith(("rate:", "amount:")))
+def settings_callback(call):
     bot.answer_callback_query(call.id)
-
-    min_finish_rate = float(call.data.split(":")[1])
 
     user_id = call.from_user.id
 
-    save_user_settings(user_id, min_finish_rate)
+    if call.data.startswith("rate:"):
+        min_finish_rate = float(call.data.split(":")[1])
 
-    bot.send_message(
-        call.message.chat.id,
-        f"✅ Минимальный процент завершения сделок установлен: "
-        f"{min_finish_rate}%"
-    )
+        save_user_settings(user_id, min_finish_rate)
+
+        bot.send_message(
+            call.message.chat.id,
+            f"✅ Минимальный процент завершения сделок установлен: "
+            f"{min_finish_rate}%"
+        )
+
+    elif call.data.startswith("amount:"):
+        min_amount_cny = float(call.data.split(":")[1])
+
+        save_min_amount_cny(user_id, min_amount_cny)
+
+        bot.send_message(
+            call.message.chat.id,
+            f"✅ Минимальная сумма сделки установлена: "
+            f"{min_amount_cny} CNY"
+        )
 
 @bot.callback_query_handler(
     func=lambda call: call.data.startswith("coin:")
@@ -170,68 +236,105 @@ def trade_callback(call):
     user_id = call.from_user.id
 
     min_finish_rate = get_min_finish_rate(user_id)
+    min_amount_cny = get_min_amount_cny(user_id)
 
-    payload = {
-        "asset": coin,
-        "fiat": "CNY",
-        "tradeType": trade_type,
-        "page": 1,
-        "rows": 10,
-        "payTypes": [],
-        "publisherType": None,
-        "transAmount": ""
-    }
+    all_ads = []
+    page = 1
 
     try:
-        response = requests.post(
-            API_URL,
-            json=payload,
-            timeout=20
-        )
+        # Загружаем страницы, пока не найдём 10 подходящих объявлений
+        # или пока Binance не перестанет возвращать объявления.
+        while len(all_ads) < 10:
+            payload = {
+                "asset": coin,
+                "fiat": "CNY",
+                "tradeType": trade_type,
+                "page": page,
+                "rows": 10,
+                "payTypes": [],
+                "publisherType": None,
+                "transAmount": ""
+            }
 
-        response.raise_for_status()
-
-        try:
-            data = response.json()
-        except requests.exceptions.JSONDecodeError:
-            print("Binance вернула некорректный JSON")
-            bot.send_message(
-                call.message.chat.id,
-                "Binance вернула некорректный ответ. Попробуй позже."
+            response = requests.post(
+                API_URL,
+                json=payload,
+                timeout=20
             )
-            return
+            response.raise_for_status()
 
-        if not isinstance(data, dict):
-            raise ValueError("Неожиданный формат ответа Binance")
+            try:
+                data = response.json()
+            except requests.exceptions.JSONDecodeError:
+                print("Binance вернула некорректный JSON")
+                bot.send_message(
+                    call.message.chat.id,
+                    "Binance вернула некорректный ответ. Попробуй позже."
+                )
+                return
 
-        ads = data.get("data", [])
+            if not isinstance(data, dict):
+                raise ValueError("Неожиданный формат ответа Binance")
 
-        if not isinstance(ads, list):
-            raise ValueError("Не удалось прочитать список объявлений")
+            ads = data.get("data", [])
 
-        if ads:
-            valid_ads = []
+            if not isinstance(ads, list):
+                raise ValueError("Не удалось прочитать список объявлений")
+
+            # Если страница пустая, больше объявлений нет.
+            if not ads:
+                break
 
             for item in ads:
                 if not isinstance(item, dict):
                     continue
 
                 ad = item.get("adv", {})
+                advertiser = item.get("advertiser", {})
 
                 if not isinstance(ad, dict):
                     continue
 
+                if not isinstance(advertiser, dict):
+                    advertiser = {}
+
                 try:
                     price = float(ad.get("price", 0))
+                    finish_rate = float(advertiser.get("monthFinishRate"))
+                    min_amount = ad.get("minSingleTransAmount", "?")
+                    max_amount = ad.get("maxSingleTransAmount", "?")
+                    min_single_amount = float(min_amount)
+                    available = float(ad.get("surplusAmount", 0))
                 except (ValueError, TypeError):
                     continue
+
+                # Binance может возвращать процент как 0.95 или как 95.
+                if 0 <= finish_rate <= 1:
+                    finish_rate *= 100
 
                 if price <= 0:
                     continue
 
-                valid_ads.append(item)
+                if finish_rate < min_finish_rate:
+                    continue
 
-            valid_ads.sort(
+                if min_single_amount < min_amount_cny:
+                    continue
+
+                if available < 100:
+                    continue
+
+                # Добавляем только объявления, прошедшие все фильтры.
+                all_ads.append(item)
+
+                if len(all_ads) >= 10:
+                    break
+
+            page += 1
+
+        if all_ads:
+            # Сортируем все найденные объявления по цене.
+            all_ads.sort(
                 key=lambda item: float(item["adv"]["price"]),
                 reverse=(trade_type == "SELL")
             )
@@ -239,79 +342,41 @@ def trade_callback(call):
             action = "покупку" if trade_type == "BUY" else "продажу"
             text = f"Объявления на {action} {coin} найдены!\n\n"
 
-            for index, item in enumerate(valid_ads, start=1):
+            for shown_count, item in enumerate(all_ads[:10], start=1):
                 ad = item.get("adv", {})
                 advertiser = item.get("advertiser", {})
 
-                if not isinstance(advertiser, dict):
-                    advertiser = {}
-
-                try:
-                    price = float(ad.get("price"))
-                except (ValueError, TypeError):
-                    continue
-
-                if price <= 0:
-                    continue
-
+                price = float(ad["price"])
                 nickname = advertiser.get("nickName", "Не указан")
+                finish_rate = float(advertiser["monthFinishRate"])
 
-                finish_rate = advertiser.get("monthFinishRate")
-
-                try:
-                    finish_rate = float(finish_rate)
-
-                    if 0 <= finish_rate <= 1:
-                        finish_rate *= 100
-
-                except (ValueError, TypeError):
-                    continue
-
-                if finish_rate < min_finish_rate:
-                    continue
-
-                finish_rate_text = f"{finish_rate:.1f}%"
+                if 0 <= finish_rate <= 1:
+                    finish_rate *= 100
 
                 min_amount = ad.get("minSingleTransAmount", "?")
                 max_amount = ad.get("maxSingleTransAmount", "?")
-
-                try:
-                    available = float(ad.get("surplusAmount", 0))
-                except (ValueError, TypeError):
-                    continue
-
-                if available < 100:
-                    continue
+                available = float(ad.get("surplusAmount", 0))
+                finish_rate_text = f"{finish_rate:.1f}%"
 
                 text += (
-                    f"{index}. Цена: {price} CNY\n"
+                    f"{shown_count}. Цена: {price} CNY\n"
                     f"   Контрагент: {nickname}\n\n"
                     f"   Лимиты: {min_amount}–{max_amount} CNY\n"
                     f"   Доступно: {available} {coin}\n\n"
                     f"   Завершение сделок: {finish_rate_text}\n"
                 )
 
-            if len(text) > len(f"Объявления на {action} {coin} найдены!\n\n"):
-                bot.send_message(
-                    call.message.chat.id,
-                    text
-                )
-            else:
-                bot.send_message(
-                    call.message.chat.id,
-                    f"Для {coin}/CNY не найдено объявлений, "
-                    "подходящих под заданные фильтры."
-                )
+            bot.send_message(call.message.chat.id, text)
 
         else:
             bot.send_message(
                 call.message.chat.id,
-                f"Объявления для {coin}/CNY не найдены."
+                f"Для {coin}/CNY не найдено объявлений, "
+                "подходящих под заданные фильтры."
             )
 
     except requests.exceptions.RequestException as error:
         print("Ошибка запроса:", error)
-
         bot.send_message(
             call.message.chat.id,
             "Не удалось получить объявления. Попробуй позже."
@@ -319,7 +384,6 @@ def trade_callback(call):
 
     except (ValueError, TypeError, KeyError) as error:
         print("Ошибка обработки ответа Binance:", repr(error))
-
         bot.send_message(
             call.message.chat.id,
             "Не удалось обработать ответ Binance."

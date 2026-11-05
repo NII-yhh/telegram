@@ -4,6 +4,8 @@ import os
 from telebot import types
 import sqlite3
 import time
+import random
+
 
 API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
@@ -240,7 +242,8 @@ def settings_callback(call):
 def coin_callback(call):
     bot.answer_callback_query(call.id)
     button(call)
-def  post_with_retry(url,  payload, attempts = 3):
+def post_with_retry(url, payload, attempts=3):
+
     for attempt in range(1, attempts + 1):
 
         try:
@@ -250,21 +253,44 @@ def  post_with_retry(url,  payload, attempts = 3):
                 timeout=20
             )
 
+            # Проверяем ограничение запросов
+            if response.status_code == 429:
+
+                if attempt == attempts:
+                    response.raise_for_status()
+
+                retry_after = response.headers.get("Retry-After")
+
+                try:
+                    delay = float(retry_after)
+                except (TypeError, ValueError):
+                    delay = 2 ** (attempt - 1)
+
+                delay += random.uniform(0, 1)
+
+                print(f"HTTP 429. Ждём {delay:.2f} секунд")
+
+                time.sleep(delay)
+                continue
+
             response.raise_for_status()
+
             return response
 
         except (
-                requests.exceptions.Timeout,
-                requests.exceptions.ConnectionError
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError
         ):
-
-            print(f"Ошибка. Попытка {attempt} из {attempts}")
 
             if attempt == attempts:
                 raise
 
-            time.sleep(2)
+            delay = 2 ** (attempt - 1)
+            delay += random.uniform(0, 1)
 
+            print(f"Ошибка соединения. Повтор через {delay:.2f} секунд")
+
+            time.sleep(delay)
 
 
 @bot.callback_query_handler(
@@ -299,12 +325,8 @@ def trade_callback(call):
                 "publisherType": None,
                 "transAmount": ""
             }
-            page += 1
-
-
 
             try:
-
                 response = post_with_retry(API_URL, payload)
                 data = response.json()
             except requests.exceptions.JSONDecodeError:
@@ -323,7 +345,6 @@ def trade_callback(call):
             if not isinstance(ads, list):
                 raise ValueError("Не удалось прочитать список объявлений")
 
-            # Если страница пустая, больше объявлений нет.
             if not ads:
                 break
 
@@ -344,41 +365,36 @@ def trade_callback(call):
                     price = float(ad.get("price", 0))
                     finish_rate = float(advertiser.get("monthFinishRate"))
                     min_amount = ad.get("minSingleTransAmount", "?")
-                    max_amount = ad.get("maxSingleTransAmount", "?")
                     min_single_amount = float(min_amount)
                     available = float(ad.get("surplusAmount", 0))
                 except (ValueError, TypeError):
                     continue
 
-                # Binance может возвращать процент как 0.95 или как 95.
                 if 0 <= finish_rate <= 1:
                     finish_rate *= 100
 
-            if price <= 0:
-                continue
+                if price <= 0:
+                    continue
 
-            if finish_rate < min_finish_rate:
-                continue
+                if finish_rate < min_finish_rate:
+                    continue
 
-            if min_single_amount < min_amount_cny:
-                continue
+                if min_single_amount < min_amount_cny:
+                    continue
 
-            if available < 100:
-                continue
+                if available < 100:
+                    continue
 
-                # Получаем уникальный ID объявления
-            ad_id = ad.get("advNo")
+                ad_id = ad.get("advNo")
 
-            # Если ID отсутствует или объявление уже встречалось — пропускаем
-            if not ad_id or ad_id in seen_ids:
-                continue
+                if not ad_id or ad_id in seen_ids:
+                    continue
 
-            # Запоминаем ID и добавляем объявление
-            seen_ids.add(ad_id)
-            all_ads.append(item)
+                seen_ids.add(ad_id)
+                all_ads.append(item)
 
-            if len(all_ads) >= 10:
-                break
+                if len(all_ads) >= 10:
+                    break
 
             page += 1
 

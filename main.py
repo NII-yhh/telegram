@@ -282,6 +282,7 @@ def post_with_retry(url, payload, attempts=3):
             requests.exceptions.ConnectionError
         ):
 
+
             if attempt == attempts:
                 raise
 
@@ -291,6 +292,11 @@ def post_with_retry(url, payload, attempts=3):
             print(f"Ошибка соединения. Повтор через {delay:.2f} секунд")
 
             time.sleep(delay)
+    raise RuntimeError(
+        f"Не удалось выполнить POST-запрос после {attempts} попыток"
+    )
+
+
 
 
 @bot.callback_query_handler(
@@ -330,6 +336,7 @@ def trade_callback(call):
             try:
                 response = post_with_retry(API_URL, payload)
                 data = response.json()
+
             except requests.exceptions.JSONDecodeError:
                 print("Binance вернула некорректный JSON")
                 bot.send_message(
@@ -447,12 +454,14 @@ def trade_callback(call):
             call.message.chat.id,
             "Binance долго не отвечает. Попробуй позже."
         )
+        return
     except requests.exceptions.ConnectionError:
         print("Ошибка подключения к Binance")
         bot.send_message(
             call.message.chat.id,
             "Не удалось подключиться к Binance. Проверь интернет."
         )
+        return
 
     except requests.exceptions.HTTPError as error:
         print("HTTP-ошибка Binance:", error)
@@ -460,6 +469,8 @@ def trade_callback(call):
             call.message.chat.id,
             "Binance вернула ошибку сервера. Попробуй позже."
         )
+        return
+
 
     except requests.exceptions.RequestException as error:
         print("Другая ошибка запроса:", error)
@@ -467,7 +478,21 @@ def trade_callback(call):
             call.message.chat.id,
             "Не удалось получить объявления. Попробуй позже."
         )
-
+        return
+    except ValueError as error:
+        print("Некорректный ответ Binance:", error)
+        bot.send_message(
+            call.message.chat.id,
+            "Binance вернула данные неожиданного формата. Попробуй позже."
+        )
+        return
+    except RuntimeError as e:
+        print(f"Ошибка выполнения запроса: {e}")
+        bot.send_message(
+        call.message.chat.id,
+        "Не удалось получить объявления. Попробуй позже."
+    )
+    return
 
 
 bot.infinity_polling()

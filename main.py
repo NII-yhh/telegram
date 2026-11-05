@@ -6,15 +6,23 @@ import sqlite3
 import time
 import random
 import logging
+from logging.handlers import RotatingFileHandler
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-handlers = [
-    logging.FileHandler("bot.log", encoding="utf-8"),
-    logging.StreamHandler()
-]
+    handlers=[
+        RotatingFileHandler(
+            "/data/bot.log",
+            maxBytes=5 * 1024 * 1024,
+            backupCount=3,
+            encoding="utf-8"
+        ),
+        logging.StreamHandler()
+    ],
+    force=True
 )
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:

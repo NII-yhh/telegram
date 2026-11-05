@@ -9,7 +9,11 @@ import logging
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
+handlers = [
+    logging.FileHandler("bot.log", encoding="utf-8"),
+    logging.StreamHandler()
+]
 )
 API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")

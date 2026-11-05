@@ -401,7 +401,12 @@ def trade_callback(call):
                 f"Для {coin}/CNY не найдено объявлений, "
                 "подходящих под заданные фильтры."
             )
-
+    except requests.exceptions.Timeout:
+        print("Время ожидания ответа Binance истекло")
+        bot.send_message(
+            call.message.chat.id,
+            "Binance долго не отвечает. Попробуй позже."
+        )
     except requests.exceptions.ConnectionError:
         print("Ошибка подключения к Binance")
         bot.send_message(
@@ -422,6 +427,7 @@ def trade_callback(call):
             call.message.chat.id,
             "Не удалось получить объявления. Попробуй позже."
         )
+
 
 
 bot.infinity_polling()

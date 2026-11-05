@@ -243,6 +243,8 @@ def coin_callback(call):
     bot.answer_callback_query(call.id)
     button(call)
 def post_with_retry(url, payload, attempts=3):
+    if attempts < 1:
+        raise ValueError("Количество попыток должно быть не меньше 1")
 
     for attempt in range(1, attempts + 1):
 
@@ -269,6 +271,18 @@ def post_with_retry(url, payload, attempts=3):
                 delay += random.uniform(0, 1)
 
                 print(f"HTTP 429. Ждём {delay:.2f} секунд")
+
+                time.sleep(delay)
+                continue
+            if response.status_code in (500, 502, 503, 504):
+
+                if attempt == attempts:
+                    response.raise_for_status()
+
+                delay = 2 ** (attempt - 1)
+                delay += random.uniform(0, 1)
+
+                print(f"HTTP {response.status_code}. Повтор через {delay:.2f} секунд")
 
                 time.sleep(delay)
                 continue

@@ -214,6 +214,8 @@ def button(call):
     )
 @bot.callback_query_handler(func=lambda call: call.data.startswith(("rate:", "amount:")))
 def post_with_retry(url, payload, attempts=3):
+    if attempts < 1:
+        raise ValueError("Количество попыток должно быть не меньше 1")
 
     if attempts < 1:
         raise ValueError(
@@ -272,6 +274,18 @@ def post_with_retry(url, payload, attempts=3):
                     f"HTTP {response.status_code}. "
                     f"Повтор через {delay:.2f} секунд"
                 )
+
+                time.sleep(delay)
+                continue
+            if response.status_code in (500, 502, 503, 504):
+
+                if attempt == attempts:
+                    response.raise_for_status()
+
+                delay = 2 ** (attempt - 1)
+                delay += random.uniform(0, 1)
+
+                print(f"HTTP {response.status_code}. Повтор через {delay:.2f} секунд")
 
                 time.sleep(delay)
                 continue

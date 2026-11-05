@@ -3,6 +3,7 @@ import requests
 import os
 from telebot import types
 import sqlite3
+import time
 
 API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
@@ -239,6 +240,31 @@ def settings_callback(call):
 def coin_callback(call):
     bot.answer_callback_query(call.id)
     button(call)
+def  post_with_retry(url,  payload, attempts = 3):
+    for attempt in range(1, attempts + 1):
+
+        try:
+            response = requests.post(
+                url,
+                json=payload,
+                timeout=20
+            )
+
+            response.raise_for_status()
+            return response
+
+        except (
+                requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError
+        ):
+
+            print(f"Ошибка. Попытка {attempt} из {attempts}")
+
+            if attempt == attempts:
+                raise
+
+            time.sleep(2)
+
 
 
 @bot.callback_query_handler(
@@ -275,14 +301,11 @@ def trade_callback(call):
             }
             page += 1
 
-            response = requests.post(
-                API_URL,
-                json=payload,
-                timeout=20
-            )
-            response.raise_for_status()
+
 
             try:
+
+                response = post_with_retry(API_URL, payload)
                 data = response.json()
             except requests.exceptions.JSONDecodeError:
                 print("Binance вернула некорректный JSON")

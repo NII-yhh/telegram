@@ -313,8 +313,9 @@ def trade_callback(call):
         all_ads = []
         seen_ids = set()
         page = 1
+        max_pages = 10
         # или пока Binance не перестанет возвращать объявления.
-        while len(all_ads) < 10:
+        while len(all_ads) < 10 and page <= max_pages:
             payload = {
                 "asset": coin,
                 "fiat": "CNY",

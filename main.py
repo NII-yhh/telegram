@@ -5,8 +5,12 @@ from telebot import types
 import sqlite3
 import time
 import random
+import logging
 
-
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
@@ -209,40 +213,12 @@ def button(call):
         reply_markup=markup
     )
 @bot.callback_query_handler(func=lambda call: call.data.startswith(("rate:", "amount:")))
-def settings_callback(call):
-    bot.answer_callback_query(call.id)
-
-    user_id = call.from_user.id
-
-    if call.data.startswith("rate:"):
-        min_finish_rate = float(call.data.split(":")[1])
-
-        save_user_settings(user_id, min_finish_rate)
-
-        bot.send_message(
-            call.message.chat.id,
-            f"✅ Минимальный процент завершения сделок установлен: "
-            f"{min_finish_rate}%"
-        )
-
-    elif call.data.startswith("amount:"):
-        min_amount_cny = float(call.data.split(":")[1])
-
-        save_min_amount_cny(user_id, min_amount_cny)
-
-        bot.send_message(
-            call.message.chat.id,
-            f"✅ Минимальная сумма сделки установлена: "
-            f"{min_amount_cny} CNY"
-        )
-
-@bot.callback_query_handler(
-    func=lambda call: call.data.startswith("coin:")
-)
-def coin_callback(call):
-    bot.answer_callback_query(call.id)
-    button(call)
 def post_with_retry(url, payload, attempts=3):
+
+    if attempts < 1:
+        raise ValueError(
+            "Количество попыток должно быть не меньше 1"
+        )
 
     for attempt in range(1, attempts + 1):
 
@@ -253,8 +229,16 @@ def post_with_retry(url, payload, attempts=3):
                 timeout=20
             )
 
-            # Проверяем ограничение запросов
+            logging.info(
+                f"Запрос выполнен. HTTP {response.status_code}"
+            )
+
+            # Проверяем HTTP 429
             if response.status_code == 429:
+
+                logging.warning(
+                    f"Binance ограничил запросы. Попытка №{attempt}"
+                )
 
                 if attempt == attempts:
                     response.raise_for_status()
@@ -268,7 +252,26 @@ def post_with_retry(url, payload, attempts=3):
 
                 delay += random.uniform(0, 1)
 
-                print(f"HTTP 429. Ждём {delay:.2f} секунд")
+                logging.warning(
+                    f"HTTP 429. Повтор через {delay:.2f} секунд"
+                )
+
+                time.sleep(delay)
+                continue
+
+            # Проверяем временные серверные ошибки
+            if response.status_code in (500, 502, 503, 504):
+
+                if attempt == attempts:
+                    response.raise_for_status()
+
+                delay = 2 ** (attempt - 1)
+                delay += random.uniform(0, 1)
+
+                logging.warning(
+                    f"HTTP {response.status_code}. "
+                    f"Повтор через {delay:.2f} секунд"
+                )
 
                 time.sleep(delay)
                 continue
@@ -277,27 +280,32 @@ def post_with_retry(url, payload, attempts=3):
 
             return response
 
-        except (
-            requests.exceptions.Timeout,
-            requests.exceptions.ConnectionError
-        ):
+        except requests.exceptions.HTTPError:
+            raise
 
+        except requests.exceptions.RequestException as e:
+
+            logging.error(
+                f"Ошибка при запросе к Binance: {e}"
+            )
 
             if attempt == attempts:
-                raise
+                raise RuntimeError(
+                    f"Не удалось выполнить запрос после {attempts} попыток"
+                ) from e
 
             delay = 2 ** (attempt - 1)
             delay += random.uniform(0, 1)
 
-            print(f"Ошибка соединения. Повтор через {delay:.2f} секунд")
+            logging.warning(
+                f"Повтор через {delay:.2f} секунд"
+            )
 
             time.sleep(delay)
+
     raise RuntimeError(
         f"Не удалось выполнить POST-запрос после {attempts} попыток"
     )
-
-
-
 
 @bot.callback_query_handler(
     func=lambda call: call.data.startswith("trade:")
@@ -478,7 +486,9 @@ def trade_callback(call):
             call.message.chat.id,
             "Не удалось получить объявления. Попробуй позже."
         )
-        return
+
+
+
     except ValueError as error:
         print("Некорректный ответ Binance:", error)
         bot.send_message(

@@ -22,13 +22,33 @@ logging.basicConfig(
     ],
     force=True
 )
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+
 API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+if ADMIN_ID == 0:
+    raise ValueError("Не задан ADMIN_ID")
 if not TOKEN:
     raise ValueError("Не задан BOT_TOKEN")
 
 bot = telebot.TeleBot(TOKEN)
+
+class TelegramErrorHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            message = self.format(record),
+            bot.send_message(ADMIN_ID,f'Критическая ошибка P2P: \n\n {message}')
+
+        except Exception:
+            pass
+telegram_handler = TelegramErrorHandler()
+telegram_handler.setLevel(logging.CRITICAL)
+telegram_handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s"
+    )
+)
+logging.getLogger().addHandler(telegram_handler)
 
 DB_PATH = "p2p_tracker.db"
 

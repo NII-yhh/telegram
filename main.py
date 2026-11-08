@@ -13,7 +13,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
         RotatingFileHandler(
-            "/data/bot.log",
+            "bot.log",
             maxBytes=5 * 1024 * 1024,
             backupCount=3,
             encoding="utf-8"
@@ -552,3 +552,5 @@ def trade_callback(call):
 
 
 bot.infinity_polling()
+
+

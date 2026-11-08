@@ -26,30 +26,63 @@ logging.basicConfig(
 API_URL = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+def is_admin(user_id):
+    return user_id == ADMIN_ID
+
+
 if ADMIN_ID == 0:
     raise ValueError("Не задан ADMIN_ID")
+
 if not TOKEN:
     raise ValueError("Не задан BOT_TOKEN")
 
+
 bot = telebot.TeleBot(TOKEN)
 
+
 class TelegramErrorHandler(logging.Handler):
+
     def emit(self, record):
         try:
-            message = self.format(record),
-            bot.send_message(ADMIN_ID,f'Критическая ошибка P2P: \n\n {message}')
+            message = self.format(record)
+
+            bot.send_message(
+                ADMIN_ID,
+                f"Критическая ошибка P2P:\n\n{message}"
+            )
 
         except Exception:
             pass
+
+
 telegram_handler = TelegramErrorHandler()
 telegram_handler.setLevel(logging.CRITICAL)
+
 telegram_handler.setFormatter(
     logging.Formatter(
         "%(asctime)s - %(levelname)s - %(message)s"
     )
 )
+
 logging.getLogger().addHandler(telegram_handler)
 
+
+@bot.message_handler(commands=["admin"])
+def admin_command(message):
+
+    user_id = message.from_user.id
+
+    if not is_admin(user_id):
+        bot.reply_to(
+            message,
+            "У тебя нет доступа к этой команде."
+        )
+        return
+
+    bot.reply_to(
+        message,
+        "Добро пожаловать в панель администратора!"
+    )
 DB_PATH = "p2p_tracker.db"
 
 conn = sqlite3.connect(DB_PATH)

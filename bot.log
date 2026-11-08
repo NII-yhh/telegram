@@ -5,3 +5,16 @@
 2026-11-08 13:20:16,470 - ERROR - Infinity polling exception: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8914784655:***********************************/getMe (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.telegram.org', port=443) at 0x22760e465d0>, 'Connection to api.telegram.org timed out. (connect timeout=15)'))
 2026-11-08 13:20:34,473 - ERROR - Infinity polling exception: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8914784655:***********************************/getMe (Caused by ConnectTimeoutError(<HTTPSConnection(host='api.telegram.org', port=443) at 0x22760e46ad0>, 'Connection to api.telegram.org timed out. (connect timeout=15)'))
 2026-11-08 13:20:55,552 - CRITICAL - Тест критической ошибки Telegram
+2026-11-08 18:30:36,058 - INFO - База данных успешно инициализирована
+2026-11-08 18:30:36,059 - INFO - P2P Tracker запущен
+2026-11-08 18:30:40,491 - ERROR - Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-11-08 18:30:45,100 - ERROR - Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-11-08 18:30:50,356 - ERROR - Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-11-08 18:30:56,962 - ERROR - Threaded polling exception: A request to the Telegram API was unsuccessful. Error code: 409. Description: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-11-08 18:32:20,410 - INFO - Запрос выполнен. HTTP 200
+2026-11-08 18:32:24,262 - INFO - Запрос выполнен. HTTP 200
+2026-11-08 18:32:26,354 - INFO - Запрос выполнен. HTTP 200
+2026-11-08 18:32:28,082 - INFO - Запрос выполнен. HTTP 200
+2026-11-08 18:32:29,780 - INFO - Запрос выполнен. HTTP 200
+2026-11-08 18:32:31,232 - INFO - Запрос выполнен. HTTP 200
+2026-11-08 18:32:32,222 - INFO - Запрос выполнен. HTTP 200

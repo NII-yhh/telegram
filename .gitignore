@@ -1,0 +1,19 @@
+# Виртуальное окружение
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Секреты
+.env
+
+# База данных
+*.db
+
+# Логи
+*.log
+
+# PyCharm
+.idea/

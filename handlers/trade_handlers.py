@@ -4,41 +4,12 @@ import requests
 
 from database import get_user_settings
 from services.binance import get_binance_ads
+from services.ads import (
+    get_ad_price,
+    get_finish_rate,
+    filter_ads
+)
 from keyboards.user_keyboards import COINS
-
-
-def get_ad_price(item):
-    ad = item.get("adv", {})
-
-    if not isinstance(ad, dict):
-        return 0
-
-    try:
-        price = float(ad.get("price", 0))
-    except (TypeError, ValueError):
-        return 0
-
-    if price <= 0:
-        return 0
-
-    return price
-
-
-def get_finish_rate(advertiser):
-    if not isinstance(advertiser, dict):
-        return 0
-
-    try:
-        finish_rate = float(
-            advertiser.get("monthFinishRate", 0)
-        )
-    except (TypeError, ValueError):
-        return 0
-
-    if 0 <= finish_rate <= 1:
-        finish_rate *= 100
-
-    return finish_rate
 
 
 def register_trade_handlers(bot):
@@ -95,57 +66,19 @@ def register_trade_handlers(bot):
                 }
 
                 ads = get_binance_ads(payload)
+
                 if not ads:
                     break
 
                 # Фильтруем объявления
-                for item in ads:
+                filtered_ads = filter_ads(
+                    ads,
+                    min_finish_rate,
+                    min_amount_cny,
+                    seen_ids
+                )
 
-                    if not isinstance(item, dict):
-                        continue
-
-                    ad = item.get("adv", {})
-                    advertiser = item.get("advertiser", {})
-
-                    if not isinstance(ad, dict):
-                        continue
-
-                    if not isinstance(advertiser, dict):
-                        advertiser = {}
-
-                    try:
-                        price = get_ad_price(item)
-                        finish_rate = get_finish_rate(advertiser)
-
-                        min_single_amount = float(
-                            ad.get("minSingleTransAmount")
-                        )
-
-                        available = float(
-                            ad.get("surplusAmount", 0)
-                        )
-
-                    except (TypeError, ValueError):
-                        continue
-
-                    if price <= 0:
-                        continue
-
-                    if finish_rate < min_finish_rate:
-                        continue
-
-                    if min_single_amount < min_amount_cny:
-                        continue
-
-                    if available < 1:
-                        continue
-
-                    ad_id = ad.get("advNo")
-
-                    if not ad_id or ad_id in seen_ids:
-                        continue
-
-                    seen_ids.add(ad_id)
+                for item in filtered_ads:
                     all_ads.append(item)
 
                     if len(all_ads) >= 10:
@@ -166,13 +99,7 @@ def register_trade_handlers(bot):
 
             action = "покупку" if trade_type == "BUY" else "продажу"
 
-            result = (
-                f"🔎 Объявления на {action} {coin}\n"
-                f"Найдено: {len(all_ads)}\n\n"
-            )
-
-            # Формируем сообщение
-            # Формируем список объявлений для отправки
+            # Формируем список объявлений
             ad_lines = []
 
             for item in all_ads:
@@ -220,9 +147,9 @@ def register_trade_handlers(bot):
                 return
 
             result = (
-                    f"🔎 Объявления на {action} {coin}\n"
-                    f"Найдено: {len(ad_lines)}\n\n"
-                    + "\n\n".join(ad_lines)
+                f"🔎 Объявления на {action} {coin}\n"
+                f"Найдено: {len(ad_lines)}\n\n"
+                + "\n\n".join(ad_lines)
             )
 
             bot.send_message(call.message.chat.id, result)
@@ -250,7 +177,6 @@ def register_trade_handlers(bot):
                 call.message.chat.id,
                 "Произошла внутренняя ошибка."
             )
-
 
 
 

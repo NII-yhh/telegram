@@ -29,7 +29,33 @@ def init_db():
                 min_amount_cny INTEGER DEFAULT 100
             )
         """)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS monitoring_subscriptions (
+    subscription_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    coin TEXT NOT NULL,
+    trade_type TEXT NOT NULL CHECK (trade_type IN ('BUY', 'SELL')),
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    UNIQUE (user_id, coin, trade_type)
+);"""
+        )
+def create_subscription(user_id, coin, trade_type):
+    with get_connection() as connection:
+        cursor = connection.cursor()
 
+        cursor.execute(
+            """
+            INSERT INTO monitoring_subscriptions
+                (user_id, coin, trade_type)
+            VALUES (?, ?, ?)
+            ON CONFLICT (user_id, coin, trade_type) DO NOTHING
+            """,
+            (user_id, coin, trade_type)
+        )
+
+        created = cursor.rowcount == 1
+
+    return created
 
 def get_users_count():
     with get_connection() as connection:

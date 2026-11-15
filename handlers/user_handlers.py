@@ -1,4 +1,8 @@
-
+from keyboards.user_keyboards import (
+    get_coins_keyboard,
+    get_trade_keyboard,
+    COINS
+)
 from keyboards.user_keyboards import (
 
     get_coins_keyboard,
@@ -48,7 +52,7 @@ def register_user_handlers(bot):
             )
             return
         coin = parts[1]
-        from keyboards.user_keyboards import COINS
+
         if coin not in COINS:
             bot.answer_callback_query(
                 call.id,

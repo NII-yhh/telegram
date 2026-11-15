@@ -1,17 +1,11 @@
 
-
 import logging
 import requests
 
 from database import get_user_settings
-from services.binance import get_binance_ads
-from services.ads import (
-    get_ad_price,
-    filter_ads,
-    format_ads
-)
+from services.trade import load_trade_ads
+from services.ads import format_ads
 from keyboards.user_keyboards import COINS
-
 
 def register_trade_handlers(bot):
 
@@ -44,58 +38,11 @@ def register_trade_handlers(bot):
             min_finish_rate = settings["min_finish_rate"]
             min_amount_cny = settings["min_amount_cny"]
 
-            all_ads = []
-            seen_ids = set()
-
-            max_pages = 10
-
-            # Загружаем объявления Binance
-            for page in range(1, max_pages + 1):
-
-                if len(all_ads) >= 10:
-                    break
-
-                payload = {
-                    "asset": coin,
-                    "fiat": "CNY",
-                    "tradeType": trade_type,
-                    "page": page,
-                    "rows": 10,
-                    "payTypes": [],
-                    "publisherType": None,
-                    "transAmount": ""
-                }
-
-                ads = get_binance_ads(payload)
-
-                if not ads:
-                    break
-
-                # Фильтруем объявления
-                filtered_ads = filter_ads(
-                    ads,
-                    min_finish_rate,
-                    min_amount_cny,
-                    seen_ids
-                )
-
-                for item in filtered_ads:
-                    all_ads.append(item)
-
-                    if len(all_ads) >= 10:
-                        break
-
-            if not all_ads:
-                bot.send_message(
-                    call.message.chat.id,
-                    f"Для {coin}/CNY не найдено подходящих объявлений."
-                )
-                return
-
-            # Сортируем объявления по цене
-            all_ads.sort(
-                key=get_ad_price,
-                reverse=(trade_type == "SELL")
+            all_ads = load_trade_ads(
+                coin,
+                trade_type,
+                min_finish_rate,
+                min_amount_cny
             )
 
             action = "покупку" if trade_type == "BUY" else "продажу"

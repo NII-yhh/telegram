@@ -133,3 +133,19 @@ def format_ads(ads, coin):
         )
 
     return ad_lines
+
+def format_trade_message(ads, coin, trade_type):
+    ad_lines = format_ads(ads, coin)
+
+    if not ad_lines:
+        return None
+
+    action = "покупку" if trade_type == "BUY" else "продажу"
+
+    result = (
+        f"🔎 Объявления на {action} {coin}\n"
+        f"Найдено: {len(ad_lines)}\n\n"
+        + "\n\n".join(ad_lines)
+    )
+
+    return result

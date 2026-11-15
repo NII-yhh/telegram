@@ -4,8 +4,9 @@ import requests
 
 from database import get_user_settings
 from services.trade import load_trade_ads
-from services.ads import format_ads
+from services.ads import format_trade_message
 from keyboards.user_keyboards import COINS
+
 
 def register_trade_handlers(bot):
 
@@ -38,6 +39,7 @@ def register_trade_handlers(bot):
             min_finish_rate = settings["min_finish_rate"]
             min_amount_cny = settings["min_amount_cny"]
 
+            # Загружаем объявления
             all_ads = load_trade_ads(
                 coin,
                 trade_type,
@@ -45,23 +47,19 @@ def register_trade_handlers(bot):
                 min_amount_cny
             )
 
-            action = "покупку" if trade_type == "BUY" else "продажу"
+            # Формируем сообщение
+            result = format_trade_message(
+                all_ads,
+                coin,
+                trade_type
+            )
 
-            # Формируем список объявлений
-            ad_lines = format_ads(all_ads, coin)
-
-            if not ad_lines:
+            if not result:
                 bot.send_message(
                     call.message.chat.id,
                     f"Для {coin}/CNY не найдено подходящих объявлений."
                 )
                 return
-
-            result = (
-                f"🔎 Объявления на {action} {coin}\n"
-                f"Найдено: {len(ad_lines)}\n\n"
-                + "\n\n".join(ad_lines)
-            )
 
             bot.send_message(call.message.chat.id, result)
 

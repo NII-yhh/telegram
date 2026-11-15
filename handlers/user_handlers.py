@@ -3,13 +3,14 @@ from keyboards.user_keyboards import (
     get_trade_keyboard,
     COINS
 )
-
+from pathlib import Path
+PHOTO_PATH = Path(__file__).resolve().parent.parent / "photo.png"
 
 def register_user_handlers(bot):
     @bot.message_handler(commands=["start"])
     def start_command(message):
         keyboard = get_coins_keyboard()
-        with open("photo.png", "rb") as photo:
+        with open(PHOTO_PATH, "rb") as photo:
             bot.send_photo(
                 message.chat.id,
                 photo,

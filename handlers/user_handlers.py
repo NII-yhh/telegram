@@ -3,11 +3,7 @@ from keyboards.user_keyboards import (
     get_trade_keyboard,
     COINS
 )
-from keyboards.user_keyboards import (
 
-    get_coins_keyboard,
-    get_trade_keyboard
-)
 
 def register_user_handlers(bot):
     @bot.message_handler(commands=["start"])

@@ -67,7 +67,7 @@ def register_settings_handlers(bot):
             message = f"Минимальный процент завершения: {value}%"
         else:
             if value not in [100, 500, 1000, 5000]:
-               return
+                return
             save_min_amount_cny(user_id, value)
             message = f"Минимальная сумма сделки: {value} CNY"
         bot.send_message(

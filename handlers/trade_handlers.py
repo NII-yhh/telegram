@@ -1,4 +1,5 @@
 
+
 import logging
 import requests
 
@@ -6,8 +7,8 @@ from database import get_user_settings
 from services.binance import get_binance_ads
 from services.ads import (
     get_ad_price,
-    get_finish_rate,
-    filter_ads
+    filter_ads,
+    format_ads
 )
 from keyboards.user_keyboards import COINS
 
@@ -100,44 +101,7 @@ def register_trade_handlers(bot):
             action = "покупку" if trade_type == "BUY" else "продажу"
 
             # Формируем список объявлений
-            ad_lines = []
-
-            for item in all_ads:
-
-                ad = item.get("adv", {})
-                advertiser = item.get("advertiser", {})
-
-                if not isinstance(ad, dict):
-                    continue
-
-                if not isinstance(advertiser, dict):
-                    advertiser = {}
-
-                price = get_ad_price(item)
-
-                if price <= 0:
-                    continue
-
-                try:
-                    available = float(ad.get("surplusAmount", 0))
-                except (TypeError, ValueError):
-                    continue
-
-                nickname = advertiser.get("nickName", "Не указан")
-                finish_rate = get_finish_rate(advertiser)
-
-                min_amount = ad.get("minSingleTransAmount", "?")
-                max_amount = ad.get("maxSingleTransAmount", "?")
-
-                number = len(ad_lines) + 1
-
-                ad_lines.append(
-                    f"{number}. Цена: {price} CNY\n"
-                    f"Контрагент: {nickname}\n"
-                    f"Лимиты: {min_amount}–{max_amount} CNY\n"
-                    f"Доступно: {available} {coin}\n"
-                    f"Завершение сделок: {finish_rate:.1f}%"
-                )
+            ad_lines = format_ads(all_ads, coin)
 
             if not ad_lines:
                 bot.send_message(
@@ -177,6 +141,3 @@ def register_trade_handlers(bot):
                 call.message.chat.id,
                 "Произошла внутренняя ошибка."
             )
-
-
-

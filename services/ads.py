@@ -39,6 +39,8 @@ def get_finish_rate(advertiser):
     return convert_rate(
         advertiser.get("monthFinishRate", 0)
     )
+
+
 def filter_ads(ads, min_finish_rate, min_amount_cny, seen_ids):
     filtered_ads = []
 
@@ -89,3 +91,45 @@ def filter_ads(ads, min_finish_rate, min_amount_cny, seen_ids):
         filtered_ads.append(item)
 
     return filtered_ads
+
+
+def format_ads(ads, coin):
+    ad_lines = []
+
+    for item in ads:
+        ad = item.get("adv", {})
+        advertiser = item.get("advertiser", {})
+
+        if not isinstance(ad, dict):
+            continue
+
+        if not isinstance(advertiser, dict):
+            advertiser = {}
+
+        price = get_ad_price(item)
+
+        if price <= 0:
+            continue
+
+        try:
+            available = float(ad.get("surplusAmount", 0))
+        except (TypeError, ValueError):
+            continue
+
+        nickname = advertiser.get("nickName", "Не указан")
+        finish_rate = get_finish_rate(advertiser)
+
+        min_amount = ad.get("minSingleTransAmount", "?")
+        max_amount = ad.get("maxSingleTransAmount", "?")
+
+        number = len(ad_lines) + 1
+
+        ad_lines.append(
+            f"{number}. Цена: {price} CNY\n"
+            f"Контрагент: {nickname}\n"
+            f"Лимиты: {min_amount}–{max_amount} CNY\n"
+            f"Доступно: {available} {coin}\n"
+            f"Завершение сделок: {finish_rate:.1f}%"
+        )
+
+    return ad_lines

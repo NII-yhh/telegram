@@ -53,7 +53,7 @@ def save_seen_ad(ad_id, coin, trade_type):
 VALUES (?, ?, ?)
 ON CONFLICT(ad_id) DO NOTHING;""", (ad_id, coin, trade_type))
         saved = cursor.rowcount == 1
-        return saved
+    return saved
 
 
 def create_subscription(user_id, coin, trade_type):

@@ -91,6 +91,29 @@ AND is_active = 1""",
         return deactivated
 
 
+def get_active_subscriptions():
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute( """
+        SELECT *
+        FROM monitoring_subscriptions
+        WHERE is_active = 1;
+        """)
+
+        subscriptions = cursor.fetchall()
+        return subscriptions
+def get_subscriptions_by_trade(coin, trade_type):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute( """SELECT *
+    FROM monitoring_subscriptions
+    WHERE coin = ?
+    AND trade_type = ?
+    AND is_active = 1
+    """,
+    (coin, trade_type))
+        subscriptions = cursor.fetchall()
+        return subscriptions
 
 def get_users_count():
     with get_connection() as connection:

@@ -1,13 +1,24 @@
-from database import get_active_subscriptions
+from database import (
+    get_active_subscriptions,
+    get_seen_ads,
+    save_seen_ad
+)
 from services.binance import get_binance_ads
+
 
 def run_monitoring_cycle():
     subscriptions = get_active_subscriptions()
-    for subscription in subscriptions:
-        print(subscription)
-        user_id = subscription[1]
-        coin = subscription[2]
-        trade_type = subscription[3]
+    pairs = set()
+
+
+    for pair in subscriptions:
+        pairs.add((pair[2], pair[3]))
+    for pair in pairs:
+
+        coin = pair[0]
+        trade_type = pair[1]
+        seen_ids = get_seen_ads(coin, trade_type)
+
         payload = {
             "page": 1,
             "rows": 10,
@@ -16,6 +27,23 @@ def run_monitoring_cycle():
             "fiat": "CNY",
             "tradeType": trade_type
         }
+
         ads = get_binance_ads(payload)
+
+        for item in ads:
+            ad_id = item["adv"]["advNo"]
+
+            if ad_id not in seen_ids:
+                save_seen_ad(ad_id, coin, trade_type)
+                seen_ids.add(ad_id)
+
+
+
+
+
+
+
+
+
 
 

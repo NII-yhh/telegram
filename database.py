@@ -73,6 +73,24 @@ def create_subscription(user_id, coin, trade_type):
         created = cursor.rowcount == 1
 
     return created
+
+
+def get_seen_ads(coin, trade_type):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+             SELECT ad_id
+             FROM seen_ads
+             WHERE coin = ?
+             AND trade_type = ?
+             """,
+            (coin, trade_type)
+        )
+        ads = cursor.fetchall()
+    seen_ids = {row[0] for row in ads}
+    return seen_ids
+
 def get_user_subscriptions(user_id):
     with get_connection() as connection:
         cursor = connection.cursor()

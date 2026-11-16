@@ -56,6 +56,41 @@ def create_subscription(user_id, coin, trade_type):
         created = cursor.rowcount == 1
 
     return created
+def get_user_subscriptions(user_id):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute( """
+    SELECT *
+    FROM monitoring_subscriptions
+    WHERE user_id = ?
+    """,
+    (user_id,))
+
+
+        subscriptions = cursor.fetchall()
+
+    if subscriptions:
+        print("Подписки найдены")
+
+    else:
+        print("Подписок пока нет")
+
+    return subscriptions
+
+def deactivate_subscription(user_id, coin, trade_type):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""UPDATE monitoring_subscriptions
+SET is_active = 0
+WHERE user_id = ?
+AND coin = ?
+AND trade_type = ?
+AND is_active = 1""",
+        (user_id, coin, trade_type))
+        deactivated = cursor.rowcount == 1
+        return deactivated
+
+
 
 def get_users_count():
     with get_connection() as connection:

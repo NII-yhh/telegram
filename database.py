@@ -39,6 +39,23 @@ def init_db():
     UNIQUE (user_id, coin, trade_type)
 );"""
         )
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS seen_ads (
+    ad_id TEXT PRIMARY KEY,
+    coin TEXT NOT NULL,
+    trade_type TEXT NOT NULL
+);""")
+
+def save_seen_ad(ad_id, coin, trade_type):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""INSERT INTO seen_ads (ad_id, coin, trade_type)
+VALUES (?, ?, ?)
+ON CONFLICT(ad_id) DO NOTHING;""", (ad_id, coin, trade_type))
+        saved = cursor.rowcount == 1
+        return saved
+
+
 def create_subscription(user_id, coin, trade_type):
     with get_connection() as connection:
         cursor = connection.cursor()

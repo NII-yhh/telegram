@@ -1,10 +1,11 @@
+import threading
 
 
 import telebot
 
 from config import BOT_TOKEN, ADMIN_ID
 from database import init_db
-
+from services.monitor import run_monitoring_cycle
 from handlers.user_handlers import register_user_handlers
 from handlers.admin_handlers import register_admin_handlers
 from handlers.trade_handlers import register_trade_handlers
@@ -30,8 +31,11 @@ def main():
     register_admin_handlers(bot)
     register_trade_handlers(bot)
     register_settings_handlers(bot)
+    monitor_thread = threading.Thread(target= run_monitoring_cycle,
+    args=(bot,), daemon=True)
 
     print("P2P Tracker запускается...")
+    monitor_thread.start()
 
     # Запускаем бота
     bot.infinity_polling(skip_pending=True)

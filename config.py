@@ -15,8 +15,3 @@ DB_PATH = "p2p_tracker.db"
 
 
 # Проверка конфигурации
-if not BOT_TOKEN:
-    raise ValueError("Не задан BOT_TOKEN")
-
-if ADMIN_ID == 0:
-    raise ValueError("Не задан ADMIN_ID")

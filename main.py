@@ -2,13 +2,19 @@
 
 import telebot
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, ADMIN_ID
 from database import init_db
 
 from handlers.user_handlers import register_user_handlers
 from handlers.admin_handlers import register_admin_handlers
 from handlers.trade_handlers import register_trade_handlers
 from handlers.settings_handlers import register_settings_handlers
+
+if not BOT_TOKEN:
+    raise ValueError("Не задан BOT_TOKEN")
+
+if ADMIN_ID == 0:
+    raise ValueError("Не задан ADMIN_ID")
 
 
 # Создаём экземпляр бота

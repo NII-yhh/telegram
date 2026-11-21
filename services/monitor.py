@@ -1,12 +1,14 @@
 from database import (
     get_active_subscriptions,
     get_seen_ads,
-    save_seen_ad
+    save_seen_ad,
+    get_subscriptions_by_trade
 )
+
 from services.binance import get_binance_ads
 
 
-def run_monitoring_cycle():
+def run_monitoring_cycle(bot):
     subscriptions = get_active_subscriptions()
     pairs = set()
 
@@ -34,8 +36,17 @@ def run_monitoring_cycle():
             ad_id = item["adv"]["advNo"]
 
             if ad_id not in seen_ids:
-                save_seen_ad(ad_id, coin, trade_type)
-                seen_ids.add(ad_id)
+
+                saved = save_seen_ad(ad_id, coin, trade_type)
+
+                if saved:
+
+                    seen_ids.add(ad_id)
+                    subscribers = get_subscriptions_by_trade(coin, trade_type)
+                    for subscriber in subscribers:
+                        user_id = subscriber[1]
+
+
 
 
 

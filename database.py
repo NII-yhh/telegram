@@ -65,14 +65,15 @@ def create_subscription(user_id, coin, trade_type):
             INSERT INTO monitoring_subscriptions
                 (user_id, coin, trade_type)
             VALUES (?, ?, ?)
-            ON CONFLICT (user_id, coin, trade_type) DO NOTHING
+           ON CONFLICT (user_id, coin, trade_type)
+DO UPDATE SET is_active = 1
             """,
             (user_id, coin, trade_type)
         )
 
-        created = cursor.rowcount == 1
+        activated = cursor.rowcount == 1
 
-    return created
+    return activated
 def get_user_subscriptions(user_id):
     with get_connection() as connection:
         cursor = connection.cursor()
@@ -103,18 +104,7 @@ def get_seen_ads(coin, trade_type):
     seen_ids = {row[0] for row in ads}
     return seen_ids
 
-def get_user_subscriptions(user_id):
-    with get_connection() as connection:
-        cursor = connection.cursor()
-        cursor.execute( """
-    SELECT *
-    FROM monitoring_subscriptions
-    WHERE user_id = ?
-    """,
-    (user_id,))
 
-
-        subscriptions = cursor.fetchall()
 
     if subscriptions:
         print("Подписки найдены")
@@ -135,7 +125,7 @@ AND trade_type = ?
 AND is_active = 1""",
         (user_id, coin, trade_type))
         deactivated = cursor.rowcount == 1
-        return deactivated
+    return deactivated
 
 
 def get_active_subscriptions():

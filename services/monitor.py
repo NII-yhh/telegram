@@ -1,14 +1,19 @@
+
 import logging
-import telebot
+import time
+
 from database import (
     get_active_subscriptions,
     get_seen_ads,
     save_seen_ad,
-    get_subscriptions_by_trade
+    get_subscriptions_by_trade,
+    add_notification,
+get_pending_notifications,
+mark_notification_sent
 )
 from services.ads import format_trade_message
 from services.binance import get_binance_ads
-import time
+
 
 def run_monitoring_cycle(bot):
     while True:
@@ -56,15 +61,25 @@ def run_monitoring_cycle(bot):
                                 )
 
                                 if message_text:
-                                    try:
-                                        bot.send_message(user_id, message_text)
-                                    except telebot.apihelper.ApiTelegramException as error:
-                                        logging.error(
-                                            f"Не удалось отправить сообщение "
-                                            f"пользователю {user_id}: {error}"
-                                        )
+                                    add_notification(
+                                        user_id,
+                                        ad_id,
+                                        message_text
+                                    )
 
         except Exception:
             logging.exception("Ошибка цикла мониторинга")
 
         time.sleep(60)
+def send_pending_notifications(bot):
+    notifications = get_pending_notifications()
+    for  notification_id, user_id, message_text in notifications:
+        try:
+            bot.send_message(user_id, message_text)
+            mark_notification_sent(notification_id)
+        except Exception as error:
+            logging.error(f"Ошибка отправки уведомления: {error}")
+
+
+
+

@@ -45,6 +45,8 @@ def init_db():
     coin TEXT NOT NULL,
     trade_type TEXT NOT NULL
 );""")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS notification_queue(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,
+        ad_id TEXT NOT NULL,message_text TEXT NOT NULL,is_sent INTEGER NOT NULL DEFAULT 0,UNIQUE (user_id, ad_id))""")
 
 def save_seen_ad(ad_id, coin, trade_type):
     with get_connection() as connection:
@@ -74,6 +76,32 @@ DO UPDATE SET is_active = 1
         activated = cursor.rowcount == 1
 
     return activated
+def add_notification(user_id, ad_id, message_text):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO notification_queue (user_id, ad_id, message_text)
+            VALUES (?, ?, ?)
+            ON CONFLICT (user_id, ad_id)
+            DO NOTHING
+        """, (user_id, ad_id, message_text))
+
+    return cursor.rowcount == 1
+def get_pending_notifications():
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""SELECT id, user_id, message_text
+FROM notification_queue
+WHERE is_sent = 0""")
+        notifications = cursor.fetchall()
+        return notifications
+def mark_notification_sent(notification_id):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""UPDATE notification_queue
+SET is_sent = 1
+WHERE id = ?""", (notification_id,))
+    return cursor.rowcount == 1
 def get_user_subscriptions(user_id):
     with get_connection() as connection:
         cursor = connection.cursor()

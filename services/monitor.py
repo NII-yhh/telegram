@@ -18,9 +18,11 @@ from services.binance import get_binance_ads
 def send_pending_notifications(bot):
     notifications = get_pending_notifications()
 
-    for notification_id, user_id, message_text in notifications:
+    for notification_id, user_id, message_text, attempts in notifications:
+        if attempts >= 5:
+            logging.warning(f"Слишком много попыток")
+            continue
         try:
-
             makr = increment_notification_attempts(notification_id)
             if not makr:
                 logging.warning(f"Не удалось увеличить счётчик попыток уведомления {notification_id}")
@@ -62,6 +64,7 @@ def run_monitoring_cycle(bot):
                 coin = pair[0]
                 trade_type = pair[1]
                 seen_ids = get_seen_ads(coin, trade_type)
+
 
                 payload = {
                     "page": 1,

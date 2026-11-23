@@ -100,7 +100,7 @@ def add_notification(user_id, ad_id, message_text):
 def get_pending_notifications():
     with get_connection() as connection:
         cursor = connection.cursor()
-        cursor.execute("""SELECT id, user_id, message_text
+        cursor.execute("""SELECT id, user_id, message_text, attempts
 FROM notification_queue
 WHERE is_sent = 0""")
         notifications = cursor.fetchall()

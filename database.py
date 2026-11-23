@@ -47,6 +47,16 @@ def init_db():
 );""")
         cursor.execute("""CREATE TABLE IF NOT EXISTS notification_queue(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,
         ad_id TEXT NOT NULL,message_text TEXT NOT NULL,is_sent INTEGER NOT NULL DEFAULT 0,UNIQUE (user_id, ad_id))""")
+        cursor.execute("PRAGMA table_info(notification_queue)")
+        columns = cursor.fetchall()
+
+        column_names = [column[1] for column in columns]
+
+        if "attempts" not in column_names:
+            cursor.execute("""
+                ALTER TABLE notification_queue
+                ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0
+            """)
 
 def save_seen_ad(ad_id, coin, trade_type):
     with get_connection() as connection:
@@ -98,10 +108,26 @@ WHERE is_sent = 0""")
 def mark_notification_sent(notification_id):
     with get_connection() as connection:
         cursor = connection.cursor()
-        cursor.execute("""UPDATE notification_queue
-SET is_sent = 1
-WHERE id = ?""", (notification_id,))
+        cursor.execute("""
+            UPDATE notification_queue
+            SET is_sent = 1
+            WHERE id = ?
+        """, (notification_id,))
+
     return cursor.rowcount == 1
+
+
+def increment_notification_attempts(notification_id):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            UPDATE notification_queue
+            SET attempts = attempts + 1
+            WHERE id = ?
+        """, (notification_id,))
+
+    return cursor.rowcount == 1
+
 def get_user_subscriptions(user_id):
     with get_connection() as connection:
         cursor = connection.cursor()
@@ -131,16 +157,6 @@ def get_seen_ads(coin, trade_type):
         ads = cursor.fetchall()
     seen_ids = {row[0] for row in ads}
     return seen_ids
-
-
-
-    if subscriptions:
-        print("Подписки найдены")
-
-    else:
-        print("Подписок пока нет")
-
-    return subscriptions
 
 def deactivate_subscription(user_id, coin, trade_type):
     with get_connection() as connection:

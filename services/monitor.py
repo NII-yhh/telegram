@@ -1,4 +1,3 @@
-
 import logging
 import time
 
@@ -8,11 +7,38 @@ from database import (
     save_seen_ad,
     get_subscriptions_by_trade,
     add_notification,
-get_pending_notifications,
-mark_notification_sent
+    get_pending_notifications,
+    mark_notification_sent
 )
 from services.ads import format_trade_message
 from services.binance import get_binance_ads
+
+
+def send_pending_notifications(bot):
+    notifications = get_pending_notifications()
+
+    for notification_id, user_id, message_text in notifications:
+        try:
+            bot.send_message(user_id, message_text)
+
+            marked = mark_notification_sent(notification_id)
+
+            if marked:
+                logging.info(
+                    f"Уведомление {notification_id} отправлено "
+                    f"пользователю {user_id}"
+                )
+            else:
+                logging.warning(
+                    f"Не удалось обновить статус уведомления "
+                    f"{notification_id}"
+                )
+
+        except Exception as error:
+            logging.error(
+                f"Ошибка отправки уведомления {notification_id} "
+                f"пользователю {user_id}: {error}"
+            )
 
 
 def run_monitoring_cycle(bot):
@@ -44,42 +70,39 @@ def run_monitoring_cycle(bot):
                     ad_id = item["adv"]["advNo"]
 
                     if ad_id not in seen_ids:
-                        saved = save_seen_ad(ad_id, coin, trade_type)
+                        subscribers = get_subscriptions_by_trade(
+                            coin, trade_type
+                        )
+
+                        # Сначала добавляем уведомления в очередь
+                        for subscriber in subscribers:
+                            user_id = subscriber[1]
+
+                            message_text = format_trade_message(
+                                [item],
+                                coin,
+                                trade_type
+                            )
+
+                            if message_text:
+                                add_notification(
+                                    user_id,
+                                    ad_id,
+                                    message_text
+                                )
+
+                        # Затем сохраняем объявление
+                        saved = save_seen_ad(
+                            ad_id, coin, trade_type
+                        )
 
                         if saved:
                             seen_ids.add(ad_id)
-                            subscribers = get_subscriptions_by_trade(
-                                coin, trade_type
-                            )
 
-                            for subscriber in subscribers:
-                                user_id = subscriber[1]
-                                message_text = format_trade_message(
-                                    [item],
-                                    coin,
-                                    trade_type
-                                )
-
-                                if message_text:
-                                    add_notification(
-                                        user_id,
-                                        ad_id,
-                                        message_text
-                                    )
+            # Отправляем накопленные уведомления
+            send_pending_notifications(bot)
 
         except Exception:
             logging.exception("Ошибка цикла мониторинга")
 
         time.sleep(60)
-def send_pending_notifications(bot):
-    notifications = get_pending_notifications()
-    for  notification_id, user_id, message_text in notifications:
-        try:
-            bot.send_message(user_id, message_text)
-            mark_notification_sent(notification_id)
-        except Exception as error:
-            logging.error(f"Ошибка отправки уведомления: {error}")
-
-
-
-

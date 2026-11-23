@@ -8,7 +8,8 @@ from database import (
     get_subscriptions_by_trade,
     add_notification,
     get_pending_notifications,
-    mark_notification_sent
+    mark_notification_sent,
+    increment_notification_attempts
 )
 from services.ads import format_trade_message
 from services.binance import get_binance_ads
@@ -19,6 +20,11 @@ def send_pending_notifications(bot):
 
     for notification_id, user_id, message_text in notifications:
         try:
+
+            makr = increment_notification_attempts(notification_id)
+            if not makr:
+                logging.warning(f"Не удалось увеличить счётчик попыток уведомления {notification_id}")
+                continue
             bot.send_message(user_id, message_text)
 
             marked = mark_notification_sent(notification_id)
@@ -33,6 +39,8 @@ def send_pending_notifications(bot):
                     f"Не удалось обновить статус уведомления "
                     f"{notification_id}"
                 )
+
+
 
         except Exception as error:
             logging.error(

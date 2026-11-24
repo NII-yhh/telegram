@@ -14,7 +14,7 @@ from database import (
 )
 from services.ads import format_trade_message
 from services.binance import get_binance_ads
-
+from services.notifications import is_temporary_error
 
 def send_pending_notifications(bot):
     notifications = get_pending_notifications()

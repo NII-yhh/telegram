@@ -62,6 +62,11 @@ def init_db():
                             ALTER TABLE notification_queue
                             ADD COLUMN last_error TEXT
                         """)
+        if "is_failed" not in column_names:
+            cursor.execute("""
+                ALTER TABLE notification_queue
+                ADD COLUMN is_failed INTEGER NOT NULL DEFAULT 0
+            """)
 
 def save_seen_ad(ad_id, coin, trade_type):
     with get_connection() as connection:

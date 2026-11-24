@@ -9,7 +9,8 @@ from database import (
     add_notification,
     get_pending_notifications,
     mark_notification_sent,
-    increment_notification_attempts
+    increment_notification_attempts,
+    save_notification_error
 )
 from services.ads import format_trade_message
 from services.binance import get_binance_ads
@@ -49,6 +50,11 @@ def send_pending_notifications(bot):
                 f"Ошибка отправки уведомления {notification_id} "
                 f"пользователю {user_id}: {error}"
             )
+            try:
+                save_notification_error(notification_id, str(error))
+            except Exception:
+                logging.exception(f"Не удалось сохранить ошибку уведомления {notification_id}")
+
 
 
 def run_monitoring_cycle(bot):

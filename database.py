@@ -57,6 +57,11 @@ def init_db():
                 ALTER TABLE notification_queue
                 ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0
             """)
+        if "last_error" not in column_names:
+            cursor.execute("""
+                            ALTER TABLE notification_queue
+                            ADD COLUMN last_error TEXT
+                        """)
 
 def save_seen_ad(ad_id, coin, trade_type):
     with get_connection() as connection:
@@ -115,7 +120,14 @@ def mark_notification_sent(notification_id):
         """, (notification_id,))
 
     return cursor.rowcount == 1
-
+def save_notification_error(notification_id, error_text):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""UPDATE notification_queue
+SET last_error = ?
+WHERE id = ?""",(error_text, notification_id))
+        saved = cursor.rowcount == 1
+    return saved
 
 def increment_notification_attempts(notification_id):
     with get_connection() as connection:

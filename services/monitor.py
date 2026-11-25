@@ -10,7 +10,8 @@ from database import (
     get_pending_notifications,
     mark_notification_sent,
     increment_notification_attempts,
-    save_notification_error
+    save_notification_error,
+    mark_notification_failed
 )
 from services.ads import format_trade_message
 from services.binance import get_binance_ads
@@ -21,8 +22,20 @@ def send_pending_notifications(bot):
 
     for notification_id, user_id, message_text, attempts in notifications:
         if attempts >= 5:
-            logging.warning(f"Слишком много попыток")
-            continue
+          failed =   mark_notification_failed(notification_id)
+
+          if failed:
+              logging.warning(
+                  f"Уведомление {notification_id} помечено как неудачное: "
+                  f"исчерпан лимит попыток"
+              )
+          else:
+              logging.error(
+                  f"Не удалось пометить уведомление {notification_id} как неудачное"
+              )
+
+          continue
+
         try:
             makr = increment_notification_attempts(notification_id)
             if not makr:
@@ -50,10 +63,32 @@ def send_pending_notifications(bot):
                 f"Ошибка отправки уведомления {notification_id} "
                 f"пользователю {user_id}: {error}"
             )
+
             try:
                 save_notification_error(notification_id, str(error))
             except Exception:
-                logging.exception(f"Не удалось сохранить ошибку уведомления {notification_id}")
+                logging.exception(
+                    f"Не удалось сохранить ошибку уведомления {notification_id}"
+                )
+
+            if not is_temporary_error(error):
+                try:
+                    failed = mark_notification_failed(notification_id)
+
+                    if failed:
+                        logging.warning(
+                            f"Уведомление {notification_id} "
+                            f"помечено как окончательно неудачное"
+                        )
+                    else:
+                        logging.warning(
+                            f"Не удалось изменить статус уведомления {notification_id}"
+                        )
+
+                except Exception:
+                    logging.exception(
+                        f"Не удалось пометить уведомление {notification_id} как неудачное"
+                    )
 
 
 
@@ -121,5 +156,8 @@ def run_monitoring_cycle(bot):
 
         except Exception:
             logging.exception("Ошибка цикла мониторинга")
+
+
+
 
         time.sleep(60)

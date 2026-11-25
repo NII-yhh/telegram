@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 import sqlite3
+from os.path import curdir
 
 from config import DB_PATH
 
@@ -112,7 +113,8 @@ def get_pending_notifications():
         cursor = connection.cursor()
         cursor.execute("""SELECT id, user_id, message_text, attempts
 FROM notification_queue
-WHERE is_sent = 0""")
+WHERE is_sent = 0
+AND is_failed = 0""")
         notifications = cursor.fetchall()
         return notifications
 def mark_notification_sent(notification_id):
@@ -125,6 +127,14 @@ def mark_notification_sent(notification_id):
         """, (notification_id,))
 
     return cursor.rowcount == 1
+def mark_notification_failed(notification_id):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""UPDATE notification_queue
+SET is_failed = 1
+WHERE id = ?""",(notification_id,))
+        failed = cursor.rowcount == 1
+        return failed
 def save_notification_error(notification_id, error_text):
     with get_connection() as connection:
         cursor = connection.cursor()

@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 import sqlite3
+from enum import nonmember
 from os.path import curdir
 
 from config import DB_PATH
@@ -151,9 +152,15 @@ def increment_notification_attempts(notification_id):
             UPDATE notification_queue
             SET attempts = attempts + 1
             WHERE id = ?
+            RETURNING attempts
         """, (notification_id,))
+        result = cursor.fetchone()
 
-    return cursor.rowcount == 1
+        if result is None:
+            return None
+
+        attempts = result[0]
+        return attempts
 
 def get_user_subscriptions(user_id):
     with get_connection() as connection:

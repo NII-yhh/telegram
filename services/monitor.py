@@ -37,10 +37,7 @@ def send_pending_notifications(bot):
           continue
 
         try:
-            makr = increment_notification_attempts(notification_id)
-            if not makr:
-                logging.warning(f"Не удалось увеличить счётчик попыток уведомления {notification_id}")
-                continue
+
             bot.send_message(user_id, message_text)
 
             marked = mark_notification_sent(notification_id)
@@ -59,10 +56,13 @@ def send_pending_notifications(bot):
 
 
         except Exception as error:
-            logging.error(
-                f"Ошибка отправки уведомления {notification_id} "
-                f"пользователю {user_id}: {error}"
-            )
+            attempts= increment_notification_attempts(notification_id)
+            if attempts is None:
+                logging.error(
+                    f"Не удалось обновить счётчик попыток уведомления {notification_id}"
+                )
+                continue
+
 
             try:
                 save_notification_error(notification_id, str(error))
@@ -71,7 +71,7 @@ def send_pending_notifications(bot):
                     f"Не удалось сохранить ошибку уведомления {notification_id}"
                 )
 
-            if not is_temporary_error(error):
+            if not is_temporary_error(error) or attempts >= 5:
                 try:
                     failed = mark_notification_failed(notification_id)
 
@@ -89,8 +89,6 @@ def send_pending_notifications(bot):
                     logging.exception(
                         f"Не удалось пометить уведомление {notification_id} как неудачное"
                     )
-
-
 
 def run_monitoring_cycle(bot):
     while True:

@@ -90,6 +90,7 @@ def send_pending_notifications(bot):
                         f"Не удалось пометить уведомление {notification_id} как неудачное"
                     )
 
+
 def run_monitoring_cycle(bot):
     while True:
         try:

@@ -69,6 +69,11 @@ def init_db():
                 ALTER TABLE notification_queue
                 ADD COLUMN is_failed INTEGER NOT NULL DEFAULT 0
             """)
+        if "is_processing" not in column_names:
+            cursor.execute("""ALTER TABLE notification_queue
+                ADD COLUMN is_processing INTEGER NOT NULL DEFAULT 0
+            """)
+
 
 def save_seen_ad(ad_id, coin, trade_type):
     with get_connection() as connection:
@@ -116,6 +121,17 @@ def get_pending_notifications():
 FROM notification_queue
 WHERE is_sent = 0
 AND is_failed = 0""")
+        notifications = cursor.fetchall()
+        return notifications
+def claim_pending_notifications():
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""UPDATE notification_queue
+SET is_processing = 1
+WHERE is_sent = 0
+ and is_failed = 0
+ and is_processing = 0
+RETURNING id, user_id, message_text, attempts""",)
         notifications = cursor.fetchall()
         return notifications
 def mark_notification_sent(notification_id):

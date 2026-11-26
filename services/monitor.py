@@ -7,18 +7,20 @@ from database import (
     save_seen_ad,
     get_subscriptions_by_trade,
     add_notification,
-    get_pending_notifications,
+
     mark_notification_sent,
     increment_notification_attempts,
     save_notification_error,
-    mark_notification_failed
+    mark_notification_failed,
+claim_pending_notifications,
+release_notification
 )
 from services.ads import format_trade_message
 from services.binance import get_binance_ads
 from services.notifications import is_temporary_error
 
 def send_pending_notifications(bot):
-    notifications = get_pending_notifications()
+    notifications = claim_pending_notifications()
 
     for notification_id, user_id, message_text, attempts in notifications:
         if attempts >= 5:
@@ -89,6 +91,18 @@ def send_pending_notifications(bot):
                     logging.exception(
                         f"Не удалось пометить уведомление {notification_id} как неудачное"
                     )
+            else:
+                try:
+                 released = release_notification(notification_id)
+                 if released:
+                     logging.info(f"Уведомление {notification_id} освобождено и возвращено в очередь")
+
+
+                 else:
+                    logging.warning(f"Не удалось освободить уведомление {notification_id}")
+                except  Exception:
+                    logging.exception(f"«Ошибка при освобождении уведомления»")
+
 
 
 def run_monitoring_cycle(bot):

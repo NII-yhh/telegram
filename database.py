@@ -134,12 +134,21 @@ WHERE is_sent = 0
 RETURNING id, user_id, message_text, attempts""",)
         notifications = cursor.fetchall()
         return notifications
+def release_notification(notification_id):
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""UPDATE notification_queue
+        SET is_processing = 0
+        WHERE id = ?""",(notification_id,))
+        released = cursor.rowcount == 1
+        return released
 def mark_notification_sent(notification_id):
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("""
             UPDATE notification_queue
-            SET is_sent = 1
+            SET is_sent = 1,
+                is_processing = 0
             WHERE id = ?
         """, (notification_id,))
 
@@ -148,7 +157,8 @@ def mark_notification_failed(notification_id):
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("""UPDATE notification_queue
-SET is_failed = 1
+SET is_failed = 1,
+ is_processing = 0
 WHERE id = ?""",(notification_id,))
         failed = cursor.rowcount == 1
         return failed

@@ -2,7 +2,7 @@ from contextlib import contextmanager
 import sqlite3
 from enum import nonmember
 from os.path import curdir
-
+import logging
 from config import DB_PATH
 
 
@@ -238,6 +238,24 @@ AND is_failed = 0
 """)
         notifications = cursor.fetchall()
         return notifications
+
+def recover_stuck_notifications():
+    notifications = get_stuck_notifications()
+    recovered_count = 0
+
+    for notification in notifications:
+        notification_id = notification[0]
+        released = release_notification(notification_id)
+
+        if released:
+            logging.info(
+                f"Зависшее уведомление {notification_id} возвращено в очередь"
+            )
+            recovered_count += 1
+
+    return recovered_count
+
+
 def deactivate_subscription(user_id, coin, trade_type):
     with get_connection() as connection:
         cursor = connection.cursor()

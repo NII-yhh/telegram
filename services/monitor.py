@@ -14,6 +14,7 @@ from database import (
     mark_notification_failed,
     claim_pending_notifications,
     release_notification,
+    recover_stuck_notifications,
 )
 
 from services.ads import format_trade_message
@@ -230,7 +231,7 @@ def run_monitoring_cycle(bot):
 
                         if saved:
                             seen_ids.add(ad_id)
-
+            recover_stuck_notifications()
             # Отправляем накопленные уведомления
             send_pending_notifications(bot)
 

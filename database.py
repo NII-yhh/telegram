@@ -73,6 +73,11 @@ def init_db():
             cursor.execute("""ALTER TABLE notification_queue
                 ADD COLUMN is_processing INTEGER NOT NULL DEFAULT 0
             """)
+        if "processing_started_at" not in column_names:
+            cursor.execute("""
+                ALTER TABLE notification_queue
+                ADD COLUMN processing_started_at TEXT
+            """)
 
 
 def save_seen_ad(ad_id, coin, trade_type):
@@ -127,7 +132,8 @@ def claim_pending_notifications():
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("""UPDATE notification_queue
-SET is_processing = 1
+SET is_processing = 1,
+    processing_started_at = CURRENT_TIMESTAMP
 WHERE is_sent = 0
  and is_failed = 0
  and is_processing = 0
@@ -138,7 +144,8 @@ def release_notification(notification_id):
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("""UPDATE notification_queue
-        SET is_processing = 0
+        SET is_processing = 0,
+              processing_started_at = NULL
         WHERE id = ?""",(notification_id,))
         released = cursor.rowcount == 1
         return released
@@ -148,7 +155,8 @@ def mark_notification_sent(notification_id):
         cursor.execute("""
             UPDATE notification_queue
             SET is_sent = 1,
-                is_processing = 0
+                is_processing = 0,
+                processing_started_at = NULL
             WHERE id = ?
         """, (notification_id,))
 
@@ -158,7 +166,8 @@ def mark_notification_failed(notification_id):
         cursor = connection.cursor()
         cursor.execute("""UPDATE notification_queue
 SET is_failed = 1,
- is_processing = 0
+    is_processing = 0,
+    processing_started_at = NULL
 WHERE id = ?""",(notification_id,))
         failed = cursor.rowcount == 1
         return failed
@@ -217,7 +226,18 @@ def get_seen_ads(coin, trade_type):
         ads = cursor.fetchall()
     seen_ids = {row[0] for row in ads}
     return seen_ids
-
+def get_stuck_notifications():
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""SELECT id, user_id, processing_started_at
+FROM notification_queue
+WHERE is_processing = 1
+AND processing_started_at < datetime('now', '-10 minutes')
+AND is_sent = 0
+AND is_failed = 0
+""")
+        notifications = cursor.fetchall()
+        return notifications
 def deactivate_subscription(user_id, coin, trade_type):
     with get_connection() as connection:
         cursor = connection.cursor()
